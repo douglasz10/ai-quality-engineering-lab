@@ -1,0 +1,32 @@
+{
+  "name": "ai-quality-engineering-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Quality Engineering Lab — portfolio monorepo demonstrating traditional and AI quality engineering (Story 1.1 foundation).",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "test:smoke": "node --import tsx --test tests/smoke/foundation.test.ts",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:smoke"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/node": "^26.5.0",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0"
+  }
+}

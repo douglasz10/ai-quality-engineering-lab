@@ -1,0 +1,7 @@
+{
+  "name": "@ai-quality-engineering-lab/foundation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Neutral placeholder workspace proving the npm workspaces wiring required by Story 1.1. No domain code.",
+  "type": "module"
+}
