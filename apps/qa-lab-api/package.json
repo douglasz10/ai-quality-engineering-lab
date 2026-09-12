@@ -1,0 +1,13 @@
+{
+  "name": "qa-lab-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local QA Lab API: minimal controlled test subject for Story 1.2. In-memory item resource with documented success and error behavior.",
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/index.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0"
+  }
+}
