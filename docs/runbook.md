@@ -1,4 +1,4 @@
-# Runbook (Stories 1.1–1.2)
+# Runbook (Stories 1.1–1.3)
 
 ## Setup path
 
@@ -12,10 +12,10 @@ No undocumented manual steps. No credentials or live LLM services required.
 
 ## Verification
 
-`npm run verify` = `typecheck` → `lint` → `format:check` → `test:smoke`.
+`npm run verify` = `typecheck` → `lint` → `format:check` → `test:smoke` → `test:api`.
 
-- Type failures, lint errors, format drift, and smoke test failures each fail
-  the command with a clear message.
+- Type failures, lint errors, format drift, smoke test failures, and API test
+  failures each fail the command with a clear message.
 
 ## Local QA Lab API (Story 1.2)
 
@@ -33,3 +33,20 @@ npm run api:start
   `{ error: "NOT_FOUND", message: "..." }`.
 - State is in-memory only. Restart the process to reset it. There is no
   reset endpoint.
+
+## API test suite (Story 1.3)
+
+Run the deterministic suite (no network server; isolated `buildApp()` + `inject`):
+
+```bash
+npm run test:api
+```
+
+- `tests/api/items.test.ts`: HTTP behavior — health/empty state, create/read/list
+  observation, quantity boundaries (0/1/100/101), a 6-rule decision table for
+  required-field combinations, wrong types, non-object bodies, malformed JSON,
+  unknown ids/routes. Every response is also validated against the OpenAPI schema.
+- `tests/api/schema.test.ts`: OpenAPI loading/compilation plus deliberately
+  incompatible fixtures (missing field, wrong type, out-of-range, wrong error
+  shape) that must fail with actionable Ajv details.
+- `tests/api/openapi.ts`: local-only schema-loading/validation helper.

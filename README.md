@@ -1,10 +1,10 @@
 # AI Quality Engineering Lab
 
 Portfolio monorepo demonstrating practical Quality Engineering for traditional
-and AI-based systems. **Status: V1 in progress — Stories 1.1 (foundation) and
-1.2 (local QA Lab API) are implemented.** Remaining suites, REST/schema tests,
-contract tests, evaluation, and CI gates arrive in later stories and must not
-be described as implemented.
+and AI-based systems. **Status: V1 in progress — Stories 1.1 (foundation), 1.2
+(local QA Lab API), and 1.3 (REST API + schema tests) are implemented.**
+Remaining suites, contract tests, evaluation, and CI gates arrive in later
+stories and must not be described as implemented.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Node version is pinned in `.nvmrc` (`24`). `package.json` also enforces
 ```bash
 npm install
 cp .env.example .env   # optional local overrides; never commit real secrets
-npm run verify         # typecheck + lint + format:check + smoke tests
+npm run verify         # typecheck + lint + format:check + smoke tests + API tests
 ```
 
 No credentials, paid services, or live LLM providers are required for the
@@ -36,6 +36,7 @@ default path.
 | `npm run format`       | Prettier write                                      |
 | `npm run test:smoke`   | Deterministic `node:test` foundation smoke          |
 | `npm run verify`       | Default verification entry point (all of the above) |
+| `npm run test:api`     | Deterministic API suite (`buildApp` + `inject`)     |
 | `npm run api:start`    | Start the local QA Lab API (Story 1.2)              |
 
 ## Local QA Lab API (Story 1.2)
@@ -78,7 +79,7 @@ curl http://127.0.0.1:3001/items/item-0001
 
 ## Deferred (not implemented yet)
 
-Local QA Lab API behavior (1.2) is implemented; REST/schema tests (1.3),
+Local QA Lab API behavior (1.2) and REST/schema tests (1.3) are implemented;
 Playwright E2E (1.4),
 Pact contract protection (1.5), GitHub Actions gates (1.6), Assistant (Epic 2),
 Agent (Epic 3), reviewer evidence consolidation (Epic 4).
