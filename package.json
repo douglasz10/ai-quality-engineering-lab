@@ -19,11 +19,13 @@
     "format": "prettier --write .",
     "test:smoke": "node --import tsx --test tests/smoke/foundation.test.ts",
     "test:api": "node --import tsx --test tests/api/items.test.ts tests/api/schema.test.ts",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
     "api:start": "npm run start --workspace qa-lab-api",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:smoke && npm run test:api"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.5.0",
     "ajv": "^8.17.1",
     "eslint": "^9.34.0",

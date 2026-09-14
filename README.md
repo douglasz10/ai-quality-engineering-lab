@@ -2,9 +2,9 @@
 
 Portfolio monorepo demonstrating practical Quality Engineering for traditional
 and AI-based systems. **Status: V1 in progress — Stories 1.1 (foundation), 1.2
-(local QA Lab API), and 1.3 (REST API + schema tests) are implemented.**
-Remaining suites, contract tests, evaluation, and CI gates arrive in later
-stories and must not be described as implemented.
+(local QA Lab API), 1.3 (REST API + schema tests), and 1.4 (browser E2E) are
+implemented.** Remaining contract tests, evaluation, and CI gates arrive in
+later stories and must not be described as implemented.
 
 ## Prerequisites
 
@@ -27,17 +27,18 @@ default path.
 
 ## Command vocabulary
 
-| Command                | Purpose                                             |
-| ---------------------- | --------------------------------------------------- |
-| `npm install`          | Install root dependencies and link workspaces       |
-| `npm run typecheck`    | Strict TypeScript check (`tsc --noEmit`)            |
-| `npm run lint`         | ESLint with strict type-checked rules               |
-| `npm run format:check` | Prettier validation                                 |
-| `npm run format`       | Prettier write                                      |
-| `npm run test:smoke`   | Deterministic `node:test` foundation smoke          |
-| `npm run verify`       | Default verification entry point (all of the above) |
-| `npm run test:api`     | Deterministic API suite (`buildApp` + `inject`)     |
-| `npm run api:start`    | Start the local QA Lab API (Story 1.2)              |
+| Command                | Purpose                                                                 |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `npm install`          | Install root dependencies and link workspaces                           |
+| `npm run typecheck`    | Strict TypeScript check (`tsc --noEmit`)                                |
+| `npm run lint`         | ESLint with strict type-checked rules                                   |
+| `npm run format:check` | Prettier validation                                                     |
+| `npm run format`       | Prettier write                                                          |
+| `npm run test:smoke`   | Deterministic `node:test` foundation smoke                              |
+| `npm run verify`       | Default verification entry point (all of the above)                     |
+| `npm run test:api`     | Deterministic API suite (`buildApp` + `inject`)                         |
+| `npm run api:start`    | Start the local QA Lab API (Story 1.2)                                  |
+| `npm run test:e2e`     | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`) |
 
 ## Local QA Lab API (Story 1.2)
 
@@ -77,9 +78,28 @@ curl http://127.0.0.1:3001/items/item-0001
 
 - `docs/runbook.md` — setup, execution, and verification path.
 
+## Browser E2E (Story 1.4)
+
+Playwright + TypeScript suite in `tests/e2e` against the public Sauce Demo
+app (Chromium only). Each test logs in independently; no test depends on
+another test's state.
+
+- Run: `npm run test:e2e` (requires `npx playwright install chromium` once).
+  E2E is intentionally outside `npm run verify` because Sauce Demo is an
+  external public SUT.
+- Coverage (6 tests): valid login, invalid login, cart update, valid
+  checkout, checkout with missing last name, critical purchase journey.
+- Locators use explicit `[data-test='...']` selectors (Sauce Demo's
+  `data-test` attribute is not matched by Playwright's default `getByTestId`).
+- Failure evidence: trace retained on failure, screenshot only on failure.
+  Inspect with `npx playwright show-report playwright-report`.
+- Deliberate-failure demo (never active in normal runs):
+  `E2E_DEMO_FAILURE=true npm run test:e2e -g "valid login"` fails exactly
+  one locator assertion with trace/screenshot evidence.
+
 ## Deferred (not implemented yet)
 
-Local QA Lab API behavior (1.2) and REST/schema tests (1.3) are implemented;
-Playwright E2E (1.4),
-Pact contract protection (1.5), GitHub Actions gates (1.6), Assistant (Epic 2),
-Agent (Epic 3), reviewer evidence consolidation (Epic 4).
+Local QA Lab API behavior (1.2), REST/schema tests (1.3), and browser E2E
+(1.4) are implemented; Pact contract protection (1.5), GitHub Actions gates
+(1.6), Assistant (Epic 2), Agent (Epic 3), reviewer evidence consolidation
+(Epic 4).

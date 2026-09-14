@@ -47,10 +47,9 @@ export default tseslint.config(
     },
   },
   {
-    // node:test owns the lifecycle of describe/it promises; awaiting them
-    // is neither required nor idiomatic, so the floating-promises rule is
-    // relaxed for suite files only (Story 1.1 smoke foundation).
-    files: ["tests/**/*.test.ts"],
+    // Playwright test/expect own their promise lifecycle; mirroring the
+    // existing node:test relaxation for suite files.
+    files: ["tests/**/*.test.ts", "tests/**/*.spec.ts"],
     rules: {
       "@typescript-eslint/no-floating-promises": "off",
     },

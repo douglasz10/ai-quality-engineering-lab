@@ -1,4 +1,4 @@
-# Runbook (Stories 1.1–1.3)
+# Runbook (Stories 1.1–1.4)
 
 ## Setup path
 
@@ -50,3 +50,18 @@ npm run test:api
   incompatible fixtures (missing field, wrong type, out-of-range, wrong error
   shape) that must fail with actionable Ajv details.
 - `tests/api/openapi.ts`: local-only schema-loading/validation helper.
+
+## Browser E2E (Story 1.4)
+
+Prerequisite (once): `npx playwright install chromium`.
+
+```bash
+npm run test:e2e
+```
+
+- Suite: `tests/e2e` (Chromium only) vs Sauce Demo. `npm run verify` does
+  not include E2E because Sauce Demo is an external public SUT.
+- Failure evidence: trace retained on failure, screenshot only on failure;
+  open with `npx playwright show-report playwright-report`.
+- Deliberate-failure demo (isolated, never in normal runs):
+  `E2E_DEMO_FAILURE=true npm run test:e2e -g "valid login"`.
