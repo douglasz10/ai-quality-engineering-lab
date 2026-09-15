@@ -1,4 +1,4 @@
-# Runbook (Stories 1.1–1.4)
+# Runbook (Stories 1.1–1.5)
 
 ## Setup path
 
@@ -65,3 +65,21 @@ npm run test:e2e
   open with `npx playwright show-report playwright-report`.
 - Deliberate-failure demo (isolated, never in normal runs):
   `E2E_DEMO_FAILURE=true npm run test:e2e -g "valid login"`.
+
+## Contract tests (Story 1.5)
+
+```bash
+npm run test:contract
+```
+
+- Consumer test generates `specs/contracts/qa-lab-api-consumer-qa-lab-api.json`
+  via the local Pact mock server (interactions: `GET /items/:id`, `POST /items`).
+- Provider verification replays the committed contract against the real QA Lab
+  API started in-process on an ephemeral port; state is seeded through public
+  POST only. No broker, no manual server terminal.
+- Contract testing proves consumer/provider compatibility; OpenAPI/Ajv schema
+  validation (Story 1.3) is a separate concern.
+- Intentional breaking-change demo (expected FAIL, repo stays green by default):
+  `npm run test:contract:breaking` renames `name` to `title` via a
+  verification-local hook; both interactions fail with "missing keys: name".
+  Re-run `npm run test:contract` to restore green.
