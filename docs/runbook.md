@@ -1,4 +1,4 @@
-# Runbook (Stories 1.1–1.5)
+# Runbook (Stories 1.1–1.6)
 
 ## Setup path
 
@@ -12,10 +12,12 @@ No undocumented manual steps. No credentials or live LLM services required.
 
 ## Verification
 
-`npm run verify` = `typecheck` → `lint` → `format:check` → `test:smoke` → `test:api`.
+`npm run verify` = `typecheck` → `lint` → `format:check` → `test:smoke` → `test:api` → `test:contract`.
 
-- Type failures, lint errors, format drift, smoke test failures, and API test
-  failures each fail the command with a clear message.
+- Type failures, lint errors, format drift, smoke test failures, API test
+  failures, and contract test failures each fail the command with a clear message.
+- `npm run test:e2e` stays outside `verify` because Sauce Demo is an external
+  public SUT; CI runs both `verify` and E2E.
 
 ## Local QA Lab API (Story 1.2)
 
@@ -79,7 +81,21 @@ npm run test:contract
   POST only. No broker, no manual server terminal.
 - Contract testing proves consumer/provider compatibility; OpenAPI/Ajv schema
   validation (Story 1.3) is a separate concern.
-- Intentional breaking-change demo (expected FAIL, repo stays green by default):
+- Intentional breaking-change demo (expected FAIL, repo stays green by default,
+  never enabled in CI):
   `npm run test:contract:breaking` renames `name` to `title` via a
   verification-local hook; both interactions fail with "missing keys: name".
   Re-run `npm run test:contract` to restore green.
+
+## CI quality gates (Story 1.6)
+
+Workflow `.github/workflows/ci.yml` (push to `main`, PRs to `main`):
+checkout → Node 24 (`.nvmrc`) → `npm ci` → `npm run verify` →
+`npx playwright install chromium` → `npm run test:e2e`. No
+`continue-on-error`; any check failure fails the job.
+
+- E2E is Chromium only. On failure CI uploads `playwright-report/` and
+  `test-results/`; inspect with `npx playwright show-report playwright-report`.
+- Failure demos are documentation tools only and are never set in CI:
+  `npm run test:contract:breaking` and
+  `E2E_DEMO_FAILURE=true npm run test:e2e -g "valid login"`.

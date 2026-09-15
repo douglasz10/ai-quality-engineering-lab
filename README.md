@@ -1,11 +1,11 @@
 # AI Quality Engineering Lab
 
 Portfolio monorepo demonstrating practical Quality Engineering for traditional
-and AI-based systems. **Status: V1 in progress — Stories 1.1 (foundation), 1.2
-(local QA Lab API), 1.3 (REST API + schema tests), 1.4 (browser E2E), and 1.5
-(consumer/provider contract protection) are implemented.** CI gates arrive in
-Story 1.6; evaluation and AI subjects arrive in Epics 2–4 and must not be
-described as implemented.
+and AI-based systems. **Status: V1 traditional QE complete — Stories 1.1
+(foundation), 1.2 (local QA Lab API), 1.3 (REST API + schema tests), 1.4
+(browser E2E), 1.5 (consumer/provider contract protection), and 1.6 (CI
+quality gates) are implemented.** Evaluation and AI subjects arrive in Epics
+2–4 and must not be described as implemented.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ Node version is pinned in `.nvmrc` (`24`). `package.json` also enforces
 ```bash
 npm install
 cp .env.example .env   # optional local overrides; never commit real secrets
-npm run verify         # typecheck + lint + format:check + smoke tests + API tests
+npm run verify         # deterministic gate: typecheck + lint + format:check + smoke + API + contract
 ```
 
 No credentials, paid services, or live LLM providers are required for the
@@ -28,19 +28,42 @@ default path.
 
 ## Command vocabulary
 
-| Command                 | Purpose                                                                 |
-| ----------------------- | ----------------------------------------------------------------------- |
-| `npm install`           | Install root dependencies and link workspaces                           |
-| `npm run typecheck`     | Strict TypeScript check (`tsc --noEmit`)                                |
-| `npm run lint`          | ESLint with strict type-checked rules                                   |
-| `npm run format:check`  | Prettier validation                                                     |
-| `npm run format`        | Prettier write                                                          |
-| `npm run test:smoke`    | Deterministic `node:test` foundation smoke                              |
-| `npm run verify`        | Default verification entry point (all of the above)                     |
-| `npm run test:api`      | Deterministic API suite (`buildApp` + `inject`)                         |
-| `npm run api:start`     | Start the local QA Lab API (Story 1.2)                                  |
-| `npm run test:e2e`      | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`) |
-| `npm run test:contract` | Consumer contract + provider verification (Story 1.5; outside `verify`) |
+| Command                 | Purpose                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| `npm install`           | Install root dependencies and link workspaces                                                      |
+| `npm run typecheck`     | Strict TypeScript check (`tsc --noEmit`)                                                           |
+| `npm run lint`          | ESLint with strict type-checked rules                                                              |
+| `npm run format:check`  | Prettier validation                                                                                |
+| `npm run format`        | Prettier write                                                                                     |
+| `npm run test:smoke`    | Deterministic `node:test` foundation smoke                                                         |
+| `npm run verify`        | Deterministic traditional gate (typecheck, lint, format, smoke, API, contract; E2E stays separate) |
+| `npm run test:api`      | Deterministic API suite (`buildApp` + `inject`)                                                    |
+| `npm run api:start`     | Start the local QA Lab API (Story 1.2)                                                             |
+| `npm run test:e2e`      | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                            |
+| `npm run test:contract` | Consumer contract + provider verification (Story 1.5; part of `verify`)                            |
+
+## CI Quality Gates (Story 1.6)
+
+GitHub Actions workflow `.github/workflows/ci.yml` runs on push to `main`
+and pull requests targeting `main`: checkout → Node 24 (from `.nvmrc`) →
+`npm ci` → `npm run verify` → `npx playwright install chromium` →
+`npm run test:e2e`. Any quality-check failure fails the job; no
+`continue-on-error` is used.
+
+- `npm run verify` is the deterministic traditional gate (typecheck, lint,
+  format:check, smoke, API, contract). E2E stays separate because Sauce Demo
+  is an external public SUT; CI runs both, locally they stay distinct.
+- E2E is Chromium only. On E2E failure CI uploads `playwright-report/` and
+  `test-results/` (trace retained on failure, screenshot only on failure);
+  inspect locally with `npx playwright show-report playwright-report`.
+- The intentional failure demos (`CONTRACT_DEMO_BREAKING=true`,
+  `E2E_DEMO_FAILURE=true`) are NOT enabled in CI. Reproduce locally:
+  `npm run test:contract:breaking` (expected FAIL with "missing keys: name",
+  then `npm run test:contract` for green) and
+  `E2E_DEMO_FAILURE=true npm run test:e2e -g "valid login"` (exactly one
+  locator failure with trace/screenshot evidence).
+- No branch protection is configured by this story; the workflow itself is
+  the enforcement evidence.
 
 ## Local QA Lab API (Story 1.2)
 
@@ -107,19 +130,17 @@ is the source of truth: the consumer test generates it via the Pact mock
 server; provider verification replays it against the real API started
 in-process on an ephemeral port (state seeded through public POST only).
 
-- Run: `npm run test:contract` (consumer + provider, green path).
+- Run: `npm run test:contract` (consumer + provider, green path; part of
+  `npm run verify` since Story 1.6).
   Granular: `npm run test:contract:consumer`, `npm run test:contract:provider`.
 - Contract testing proves consumer/provider compatibility over HTTP; it does
   not replace OpenAPI/Ajv schema-shape validation (Story 1.3).
-- `npm run verify` does not include contract tests; Story 1.6 decides CI
-  composition.
-- Deliberate breaking-change demo (isolated, never in normal runs):
+- Deliberate breaking-change demo (isolated, never in normal runs or CI):
   `npm run test:contract:breaking` renames response field `name` to `title`
   via a verification-local hook and fails both interactions with a clear
   "missing keys: name" mismatch. Re-run `npm run test:contract` for green.
 
 ## Deferred (not implemented yet)
 
-Local QA Lab API behavior (1.2), REST/schema tests (1.3), browser E2E (1.4),
-and contract protection (1.5) are implemented; GitHub Actions gates (1.6),
-Assistant (Epic 2), Agent (Epic 3), reviewer evidence consolidation (Epic 4).
+Stories 1.1–1.6 (traditional QE + CI gates) are implemented; Assistant
+(Epic 2), Agent (Epic 3), reviewer evidence consolidation (Epic 4).
