@@ -1,0 +1,45 @@
+{
+  "name": "ai-quality-engineering-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Quality Engineering Lab — portfolio monorepo demonstrating traditional and AI quality engineering (Story 1.1 foundation).",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "test:smoke": "node --import tsx --test tests/smoke/foundation.test.ts",
+    "test:api": "node --import tsx --test tests/api/items.test.ts tests/api/schema.test.ts",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
+    "test:contract": "node --import tsx --test tests/contract/items.consumer.test.ts && node --import tsx tests/contract/verify.provider.ts",
+    "test:contract:consumer": "node --import tsx --test tests/contract/items.consumer.test.ts",
+    "test:contract:provider": "node --import tsx tests/contract/verify.provider.ts",
+    "test:contract:breaking": "cross-env CONTRACT_DEMO_BREAKING=true node --import tsx tests/contract/verify.provider.ts",
+    "api:start": "npm run start --workspace qa-lab-api",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:smoke && npm run test:api && npm run test:contract"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@pact-foundation/pact": "^17.1.4",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.5.0",
+    "ajv": "^8.17.1",
+    "cross-env": "^10.1.0",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0",
+    "yaml": "^2.8.1"
+  }
+}
