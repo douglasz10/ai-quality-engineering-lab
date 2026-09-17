@@ -1,11 +1,10 @@
 # AI Quality Engineering Lab
 
 Portfolio monorepo demonstrating practical Quality Engineering for traditional
-and AI-based systems. **Status: V1 traditional QE complete — Stories 1.1
-(foundation), 1.2 (local QA Lab API), 1.3 (REST API + schema tests), 1.4
-(browser E2E), 1.5 (consumer/provider contract protection), and 1.6 (CI
-quality gates) are implemented.** Evaluation and AI subjects arrive in Epics
-2–4 and must not be described as implemented.
+and AI-based systems. **Status: V1 traditional QE complete (Stories 1.1–1.6);
+Story 2.1 (Assistant subject) is implemented.** Scenarios, rubrics,
+evaluators, live LLM mode, Agent, and reviewer consolidation arrive in later
+Epic 2–4 stories and must not be described as implemented.
 
 ## Prerequisites
 
@@ -28,19 +27,20 @@ default path.
 
 ## Command vocabulary
 
-| Command                 | Purpose                                                                                            |
-| ----------------------- | -------------------------------------------------------------------------------------------------- |
-| `npm install`           | Install root dependencies and link workspaces                                                      |
-| `npm run typecheck`     | Strict TypeScript check (`tsc --noEmit`)                                                           |
-| `npm run lint`          | ESLint with strict type-checked rules                                                              |
-| `npm run format:check`  | Prettier validation                                                                                |
-| `npm run format`        | Prettier write                                                                                     |
-| `npm run test:smoke`    | Deterministic `node:test` foundation smoke                                                         |
-| `npm run verify`        | Deterministic traditional gate (typecheck, lint, format, smoke, API, contract; E2E stays separate) |
-| `npm run test:api`      | Deterministic API suite (`buildApp` + `inject`)                                                    |
-| `npm run api:start`     | Start the local QA Lab API (Story 1.2)                                                             |
-| `npm run test:e2e`      | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                            |
-| `npm run test:contract` | Consumer contract + provider verification (Story 1.5; part of `verify`)                            |
+| Command                   | Purpose                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| `npm install`             | Install root dependencies and link workspaces                                                      |
+| `npm run typecheck`       | Strict TypeScript check (`tsc --noEmit`)                                                           |
+| `npm run lint`            | ESLint with strict type-checked rules                                                              |
+| `npm run format:check`    | Prettier validation                                                                                |
+| `npm run format`          | Prettier write                                                                                     |
+| `npm run test:smoke`      | Deterministic `node:test` foundation smoke                                                         |
+| `npm run verify`          | Deterministic traditional gate (typecheck, lint, format, smoke, API, contract; E2E stays separate) |
+| `npm run test:api`        | Deterministic API suite (`buildApp` + `inject`)                                                    |
+| `npm run api:start`       | Start the local QA Lab API (Story 1.2)                                                             |
+| `npm run assistant:start` | Invoke the deterministic Assistant subject, prints provider-neutral JSON (Story 2.1)               |
+| `npm run test:e2e`        | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                            |
+| `npm run test:contract`   | Consumer contract + provider verification (Story 1.5; part of `verify`)                            |
 
 ## CI Quality Gates (Story 1.6)
 
@@ -142,5 +142,20 @@ in-process on an ephemeral port (state seeded through public POST only).
 
 ## Deferred (not implemented yet)
 
-Stories 1.1–1.6 (traditional QE + CI gates) are implemented; Assistant
-(Epic 2), Agent (Epic 3), reviewer evidence consolidation (Epic 4).
+Stories 1.1–1.6 (traditional QE + CI gates) and 2.1 (Assistant subject) are
+implemented; scenarios/rubrics (2.2), deterministic evaluation (2.3+), live
+mode, Agent (Epic 3), reviewer evidence consolidation (Epic 4).
+
+## Assistant Subject (Story 2.1)
+
+Deterministic in-process Assistant in `apps/assistant` behind a
+provider-neutral boundary. No credentials, no network, no live LLM.
+
+- Run: `npm run assistant:start -- "What is the current stock level for Lab Notebook?"`
+  (no argument runs the first fixture input). Prints provider-neutral JSON:
+  `input`, `context`, `providerMode: "deterministic"`, `response`,
+  `metadata: { runId, durationMs, fixtureId }`.
+- Programmatic: `runAssistant(input, context)` from
+  `apps/assistant/src/assistant.ts` — same function the CLI uses.
+- Stateless per run; two small fixtures (stock levels, shipping policy) with
+  a tiny controlled context for future groundedness/relevance evaluation.

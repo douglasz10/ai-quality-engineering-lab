@@ -99,3 +99,15 @@ checkout → Node 24 (`.nvmrc`) → `npm ci` → `npm run verify` →
 - Failure demos are documentation tools only and are never set in CI:
   `npm run test:contract:breaking` and
   `E2E_DEMO_FAILURE=true npm run test:e2e -g "valid login"`.
+
+## Assistant subject (Story 2.1)
+
+```bash
+npm run assistant:start -- "What is the current stock level for Lab Notebook?"
+```
+
+- In-process deterministic subject in `apps/assistant`; no server, no
+  credentials, no network. Prints provider-neutral JSON (`input`, `context`,
+  `providerMode`, `response`, `metadata: { runId, durationMs, fixtureId }`).
+- Same behavior programmatically via `runAssistant(input, context)`.
+- Stateless per run; no scenarios, rubrics, evaluators, or live mode yet.
