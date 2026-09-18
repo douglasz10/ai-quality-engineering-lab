@@ -111,3 +111,13 @@ npm run assistant:start -- "What is the current stock level for Lab Notebook?"
   `providerMode`, `response`, `metadata: { runId, durationMs, fixtureId }`).
 - Same behavior programmatically via `runAssistant(input, context)`.
 - Stateless per run; no scenarios, rubrics, evaluators, or live mode yet.
+
+## Assistant scenarios + rubric (Story 2.2, inspection only)
+
+```bash
+ls evaluation/scenarios/assistant/ evaluation/rubrics/
+```
+
+- 3 version-controlled scenarios + full 7-dimension rubric. Source artifacts
+  only: no evaluation command, loader, schema validation, or reporting yet
+  (Story 2.3). Each scenario is independent of observed outputs.

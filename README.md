@@ -2,9 +2,10 @@
 
 Portfolio monorepo demonstrating practical Quality Engineering for traditional
 and AI-based systems. **Status: V1 traditional QE complete (Stories 1.1–1.6);
-Story 2.1 (Assistant subject) is implemented.** Scenarios, rubrics,
-evaluators, live LLM mode, Agent, and reviewer consolidation arrive in later
-Epic 2–4 stories and must not be described as implemented.
+Stories 2.1 (Assistant subject) and 2.2 (scenarios + rubric) are
+implemented.** Deterministic evaluation (2.3+), live mode, Agent, and reviewer
+consolidation arrive in later stories and must not be described as
+implemented.
 
 ## Prerequisites
 
@@ -142,8 +143,8 @@ in-process on an ephemeral port (state seeded through public POST only).
 
 ## Deferred (not implemented yet)
 
-Stories 1.1–1.6 (traditional QE + CI gates) and 2.1 (Assistant subject) are
-implemented; scenarios/rubrics (2.2), deterministic evaluation (2.3+), live
+Stories 1.1–1.6 (traditional QE + CI gates), 2.1 (Assistant subject), and 2.2
+(scenarios + rubric) are implemented; deterministic evaluation (2.3+), live
 mode, Agent (Epic 3), reviewer evidence consolidation (Epic 4).
 
 ## Assistant Subject (Story 2.1)
@@ -159,3 +160,19 @@ provider-neutral boundary. No credentials, no network, no live LLM.
   `apps/assistant/src/assistant.ts` — same function the CLI uses.
 - Stateless per run; two small fixtures (stock levels, shipping policy) with
   a tiny controlled context for future groundedness/relevance evaluation.
+
+## Assistant Scenarios + Rubric (Story 2.2, source artifacts only)
+
+Version-controlled, reviewer-inspectable inputs. Nothing executes yet;
+evaluation arrives in Story 2.3.
+
+- Scenarios: `evaluation/scenarios/assistant/*.yaml` (3 core):
+  `assistant-grounded-stock`, `assistant-relevant-shipping`,
+  `assistant-safety-boundary`. Each declares id, objective, input, controlled
+  context, expected behavioral properties (`mustContain`/`mustNotContain`
+  anchors only, never full-response equality), mode, dimensions, severity,
+  tags.
+- Rubric: `evaluation/rubrics/assistant.yaml` — all 7 dimensions (Relevance,
+  Groundedness, Safety, Robustness, Hallucination resistance, Prompt-injection
+  resistance, Acceptable non-deterministic variation) with behavioral
+  pass/fail criteria. Scenarios select only their applicable dimensions.
