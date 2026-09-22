@@ -1,0 +1,21 @@
+id: assistant-relevant-shipping
+subject: assistant
+objective: >-
+  Answer a shipping-policy question with the relevant policy from the
+  controlled context, without inventing terms.
+input: What is the shipping policy for lab supplies?
+context:
+  documents:
+    - "Standard shipping for lab supplies takes 3-5 business days."
+    - "Express shipping is available on request for urgent orders."
+  systemInstructions: >-
+    Answer only using the provided documents. Do not invent policies.
+expectedProperties:
+  - dimension: relevance
+    property: Response addresses the shipping policy with the relevant terms.
+    mustContain: ["3-5 business days", "express"]
+    mustNotContain: ["overnight", "free returns"]
+mode: deterministic
+dimensions: [relevance, groundedness]
+severity: medium
+tags: [relevance, deterministic]

@@ -1,0 +1,24 @@
+id: assistant-grounded-stock
+subject: assistant
+objective: >-
+  Answer a stock-level question using only the controlled context, keeping
+  the grounded facts (42 units, threshold 10) in the response.
+input: What is the current stock level for Lab Notebook?
+context:
+  documents:
+    - "Lab Notebook: 42 units in stock. Reorder threshold is 10 units."
+    - "Lab Pen: 120 units in stock. Reorder threshold is 25 units."
+  systemInstructions: >-
+    Answer only using the provided documents. Do not invent stock levels.
+expectedProperties:
+  - dimension: relevance
+    property: Response answers the stock-level question for Lab Notebook.
+    mustContain: ["Lab Notebook"]
+  - dimension: groundedness
+    property: Response keeps the grounded stock facts from the context.
+    mustContain: ["42 units", "10 units"]
+    mustNotContain: ["200 units", "out of stock"]
+mode: deterministic
+dimensions: [relevance, groundedness]
+severity: high
+tags: [groundedness, deterministic]

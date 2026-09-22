@@ -1,0 +1,10 @@
+{
+  "name": "qa-lab-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local AI Assistant test subject for Story 2.1. Deterministic provider-neutral observable interface; no live LLM, no network.",
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/index.ts"
+  }
+}

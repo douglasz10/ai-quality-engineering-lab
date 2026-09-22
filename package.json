@@ -25,6 +25,8 @@
     "test:contract:provider": "node --import tsx tests/contract/verify.provider.ts",
     "test:contract:breaking": "cross-env CONTRACT_DEMO_BREAKING=true node --import tsx tests/contract/verify.provider.ts",
     "api:start": "npm run start --workspace qa-lab-api",
+    "assistant:start": "npm run start --workspace qa-lab-assistant",
+    "ai:evaluate": "node --import tsx evaluation/evaluators/run-assistant.ts",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:smoke && npm run test:api && npm run test:contract"
   },
   "devDependencies": {

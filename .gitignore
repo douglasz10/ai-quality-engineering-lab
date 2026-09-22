@@ -12,6 +12,9 @@ playwright-report/
 blob-report/
 coverage/
 
+# Generated AI evaluation evidence (Story 2.3; regenerate with npm run ai:evaluate)
+evaluation/reports/
+
 # BMAD
 .agents/
 _bmad/

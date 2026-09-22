@@ -99,3 +99,48 @@ checkout → Node 24 (`.nvmrc`) → `npm ci` → `npm run verify` →
 - Failure demos are documentation tools only and are never set in CI:
   `npm run test:contract:breaking` and
   `E2E_DEMO_FAILURE=true npm run test:e2e -g "valid login"`.
+
+## Assistant subject (Story 2.1)
+
+```bash
+npm run assistant:start -- "What is the current stock level for Lab Notebook?"
+```
+
+- In-process deterministic subject in `apps/assistant`; no server, no
+  credentials, no network. Prints provider-neutral JSON (`input`, `context`,
+  `providerMode`, `response`, `metadata: { runId, durationMs, fixtureId }`).
+- Same behavior programmatically via `runAssistant(input, context)`.
+- Stateless per run; no scenarios, rubrics, evaluators, or live mode yet.
+
+## Assistant scenarios + rubric (Story 2.2, inspection only)
+
+```bash
+ls evaluation/scenarios/assistant/ evaluation/rubrics/
+```
+
+- 3 version-controlled scenarios + full 7-dimension rubric. Each scenario is
+  independent of observed outputs.
+
+## Deterministic assistant evaluation (Story 2.3)
+
+```bash
+npm run ai:evaluate
+```
+
+- Evaluates the 3 scenarios via `runAssistant()` and writes
+  `evaluation/reports/assistant-deterministic.json` and `.md` (gitignored
+  generated evidence; regenerate any time with the command above).
+- Criterion status `passed | failed | skipped`; SKIPPED never causes failure.
+  Anchors are case-insensitive literal substrings. Exit 0 = green, 1 = any
+  evaluated criterion failed.
+- Controlled failing demo without editing committed scenarios:
+
+  ```bash
+  cp -r evaluation/scenarios/assistant /tmp/ai23-demo   # copy the scenarios
+  # edit an anchor in /tmp/ai23-demo/assistant-grounded-stock.yaml (e.g. 42 units -> 999 units)
+  AI_EVAL_SCENARIOS_DIR=/tmp/ai23-demo npm run ai:evaluate   # expect exit 1 + missing-anchor evidence
+  npm run ai:evaluate                                        # restore green reports
+  ```
+
+  On Windows PowerShell set the variable with
+  `$env:AI_EVAL_SCENARIOS_DIR="C:\path\to\ai23-demo"` before the command.
