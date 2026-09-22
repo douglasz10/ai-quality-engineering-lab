@@ -118,6 +118,29 @@ npm run assistant:start -- "What is the current stock level for Lab Notebook?"
 ls evaluation/scenarios/assistant/ evaluation/rubrics/
 ```
 
-- 3 version-controlled scenarios + full 7-dimension rubric. Source artifacts
-  only: no evaluation command, loader, schema validation, or reporting yet
-  (Story 2.3). Each scenario is independent of observed outputs.
+- 3 version-controlled scenarios + full 7-dimension rubric. Each scenario is
+  independent of observed outputs.
+
+## Deterministic assistant evaluation (Story 2.3)
+
+```bash
+npm run ai:evaluate
+```
+
+- Evaluates the 3 scenarios via `runAssistant()` and writes
+  `evaluation/reports/assistant-deterministic.json` and `.md` (gitignored
+  generated evidence; regenerate any time with the command above).
+- Criterion status `passed | failed | skipped`; SKIPPED never causes failure.
+  Anchors are case-insensitive literal substrings. Exit 0 = green, 1 = any
+  evaluated criterion failed.
+- Controlled failing demo without editing committed scenarios:
+
+  ```bash
+  cp -r evaluation/scenarios/assistant /tmp/ai23-demo   # copy the scenarios
+  # edit an anchor in /tmp/ai23-demo/assistant-grounded-stock.yaml (e.g. 42 units -> 999 units)
+  AI_EVAL_SCENARIOS_DIR=/tmp/ai23-demo npm run ai:evaluate   # expect exit 1 + missing-anchor evidence
+  npm run ai:evaluate                                        # restore green reports
+  ```
+
+  On Windows PowerShell set the variable with
+  `$env:AI_EVAL_SCENARIOS_DIR="C:\path\to\ai23-demo"` before the command.

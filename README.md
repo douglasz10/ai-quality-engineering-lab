@@ -2,10 +2,10 @@
 
 Portfolio monorepo demonstrating practical Quality Engineering for traditional
 and AI-based systems. **Status: V1 traditional QE complete (Stories 1.1–1.6);
-Stories 2.1 (Assistant subject) and 2.2 (scenarios + rubric) are
-implemented.** Deterministic evaluation (2.3+), live mode, Agent, and reviewer
-consolidation arrive in later stories and must not be described as
-implemented.
+Stories 2.1 (Assistant subject), 2.2 (scenarios + rubric), and 2.3
+(deterministic evaluation) are implemented.** Violation scenarios (2.4),
+variation handling (2.5), live mode (2.6), Agent, and reviewer consolidation
+arrive in later stories and must not be described as implemented.
 
 ## Prerequisites
 
@@ -40,6 +40,7 @@ default path.
 | `npm run test:api`        | Deterministic API suite (`buildApp` + `inject`)                                                    |
 | `npm run api:start`       | Start the local QA Lab API (Story 1.2)                                                             |
 | `npm run assistant:start` | Invoke the deterministic Assistant subject, prints provider-neutral JSON (Story 2.1)               |
+| `npm run ai:evaluate`     | Deterministic Assistant evaluation: writes JSON + Markdown reports, exit 1 on any failed criterion |
 | `npm run test:e2e`        | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                            |
 | `npm run test:contract`   | Consumer contract + provider verification (Story 1.5; part of `verify`)                            |
 
@@ -143,9 +144,10 @@ in-process on an ephemeral port (state seeded through public POST only).
 
 ## Deferred (not implemented yet)
 
-Stories 1.1–1.6 (traditional QE + CI gates), 2.1 (Assistant subject), and 2.2
-(scenarios + rubric) are implemented; deterministic evaluation (2.3+), live
-mode, Agent (Epic 3), reviewer evidence consolidation (Epic 4).
+Stories 1.1–1.6 (traditional QE + CI gates), 2.1 (Assistant subject), 2.2
+(scenarios + rubric), and 2.3 (deterministic evaluation) are implemented;
+violation scenarios (2.4), variation handling (2.5), live LLM mode (2.6),
+Agent (Epic 3), reviewer evidence consolidation (Epic 4).
 
 ## Assistant Subject (Story 2.1)
 
@@ -176,3 +178,30 @@ evaluation arrives in Story 2.3.
   Groundedness, Safety, Robustness, Hallucination resistance, Prompt-injection
   resistance, Acceptable non-deterministic variation) with behavioral
   pass/fail criteria. Scenarios select only their applicable dimensions.
+
+## Deterministic Assistant Evaluation (Story 2.3)
+
+```bash
+npm run ai:evaluate
+```
+
+- Runs the 3 scenarios through the Story 2.1 deterministic Assistant
+  (`runAssistant()`), evaluates each selected dimension against the rubric
+  criteria, and writes both reports to `evaluation/reports/` (gitignored
+  generated evidence): `assistant-deterministic.json` and
+  `assistant-deterministic.md`.
+- Criterion status is `passed | failed | skipped`. A dimension selected without
+  `expectedProperties` is SKIPPED and never contributes to failure.
+- Anchors are case-insensitive literal substrings (`mustContain` all present,
+  `mustNotContain` all absent). No regex, no fuzzy matching, no
+  LLM-as-a-judge, no semantic scoring.
+- Exit code 0 when no evaluated criterion fails, 1 when any fails. The
+  behavioral verdict is reproducible; `generatedAt`, `runId`, and `durationMs`
+  are execution metadata only.
+- Controlled failing demo (committed scenarios are never edited): copy
+  `evaluation/scenarios/assistant/` to a temp folder, change an anchor in the
+  copy, then run with `AI_EVAL_SCENARIOS_DIR` pointing at it — the scenario
+  fails with actionable missing-anchor evidence and exit code 1. Re-run
+  `npm run ai:evaluate` to restore green reports.
+- Not part of `npm run verify` or CI; evaluation evidence is reviewed on
+  demand.

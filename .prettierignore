@@ -1,3 +1,5 @@
 dist/
 artifacts/
 node_modules
+# Generated Pact contracts (rewritten by npm run test:contract:consumer)
+specs/contracts/
