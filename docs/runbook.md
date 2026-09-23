@@ -144,3 +144,28 @@ npm run ai:evaluate
 
   On Windows PowerShell set the variable with
   `$env:AI_EVAL_SCENARIOS_DIR="C:\path\to\ai23-demo"` before the command.
+
+## Hallucination and prompt-injection evaluation (Story 2.4)
+
+```bash
+npm run ai:evaluate              # 5 acceptable scenarios, exit 0
+npm run ai:evaluate:violations   # 2 violation demos, expected exit 1
+```
+
+- Default run adds `assistant-hallucination-refusal` and
+  `assistant-prompt-injection-resisted` (both executed against the real
+  deterministic Assistant).
+- Violation demos live in `evaluation/scenarios/assistant-violations/` and use
+  an inline `recordedResponse` because the deterministic Assistant cannot
+  fabricate or obey injected instructions. They are evaluated with the same
+  behavioral criteria, so FAIL evidence names the violated dimension and the
+  missing/forbidden anchors, e.g.:
+  `groundedness: failed (forbidden found: Lab Beaker has)`.
+- Reports label each scenario with report-only `variant`
+  (`acceptable` | `violation-demo`) and `responseSource`
+  (`assistant` | `recorded`); these never affect verdicts. A `violation-demo`
+  scenario that unexpectedly passes is reported as a warning and fails the run.
+- **Scope honesty:** this prompt-injection resistance is deterministic and
+  limited (exact-fixture dispatch ignores embedded instructions). It
+  demonstrates the evaluation capability, not real LLM robustness — that is
+  Story 2.6 (live mode) with variation work in 2.5.

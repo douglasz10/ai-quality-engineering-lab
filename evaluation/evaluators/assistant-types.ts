@@ -5,6 +5,10 @@
 
 export type CriterionStatus = "passed" | "failed" | "skipped";
 
+/** Report-only labels (never influence verdicts). */
+export type ScenarioVariant = "acceptable" | "violation-demo";
+export type ResponseSource = "assistant" | "recorded";
+
 export interface ScenarioExpectedProperty {
   readonly dimension: string;
   readonly property: string;
@@ -26,6 +30,14 @@ export interface AssistantScenario {
   readonly dimensions: readonly string[];
   readonly severity: string;
   readonly tags?: readonly string[];
+  /**
+   * Story 2.4: deliberately unsupported/unauthorized behavior cannot be
+   * produced by the deterministic Assistant, so violation scenarios carry an
+   * inline recorded response evaluated by the same anchor criteria.
+   */
+  readonly recordedResponse?: string;
+  /** Report-only: "acceptable" (default) or "violation-demo". */
+  readonly variant?: ScenarioVariant;
 }
 
 export interface RubricDimension {
@@ -58,6 +70,10 @@ export interface ScenarioEvaluation {
   readonly response: string;
   readonly fixtureId: string;
   readonly runId: string;
+  /** Report-only: which variant was evaluated. */
+  readonly variant: ScenarioVariant;
+  /** Report-only: response origin (invoked Assistant or recorded response). */
+  readonly responseSource: ResponseSource;
   readonly criteria: readonly CriterionResult[];
   readonly passed: boolean;
 }

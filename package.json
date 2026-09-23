@@ -27,6 +27,7 @@
     "api:start": "npm run start --workspace qa-lab-api",
     "assistant:start": "npm run start --workspace qa-lab-assistant",
     "ai:evaluate": "node --import tsx evaluation/evaluators/run-assistant.ts",
+    "ai:evaluate:violations": "cross-env AI_EVAL_SCENARIOS_DIR=evaluation/scenarios/assistant-violations node --import tsx evaluation/evaluators/run-assistant.ts",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:smoke && npm run test:api && npm run test:contract"
   },
   "devDependencies": {

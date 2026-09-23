@@ -8,6 +8,7 @@ import type {
   AssistantScenario,
   CriterionResult,
   EvaluationReport,
+  ResponseSource,
   ScenarioEvaluation,
 } from "./assistant-types.ts";
 
@@ -20,7 +21,8 @@ const rubricPath = path.join(repoRoot, "evaluation", "rubrics", "assistant.yaml"
  * default and are never modified by the harness.
  */
 export function resolveScenariosDir(): string {
-  return process.env["AI_EVAL_SCENARIOS_DIR"] ?? defaultScenariosDir;
+  const override = process.env["AI_EVAL_SCENARIOS_DIR"];
+  return override === undefined ? defaultScenariosDir : path.resolve(repoRoot, override);
 }
 
 function containsAnchor(response: string, anchor: string): boolean {
@@ -79,7 +81,26 @@ async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEv
             ? {}
             : { systemInstructions: scenario.context.systemInstructions }),
         };
-  const result = await runAssistant(scenario.input, context);
+  // Story 2.4: violation variants are evaluated against an inline recorded
+  // response (the deterministic Assistant cannot produce violating behavior).
+  // The anchor criteria and result model are identical for both sources.
+  const recorded = scenario.recordedResponse;
+  let response: string;
+  let fixtureId: string;
+  let runId: string;
+  let responseSource: ResponseSource;
+  if (recorded === undefined) {
+    const result = await runAssistant(scenario.input, context);
+    response = result.response;
+    fixtureId = result.metadata.fixtureId;
+    runId = result.metadata.runId;
+    responseSource = "assistant";
+  } else {
+    response = recorded;
+    fixtureId = "recorded-response";
+    runId = "not-executed";
+    responseSource = "recorded";
+  }
   const criteria: CriterionResult[] = scenario.dimensions.map((dimension) => {
     const properties = scenario.expectedProperties.filter((entry) => entry.dimension === dimension);
     if (properties.length === 0) {
@@ -96,7 +117,7 @@ async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEv
       evaluateAnchors(
         entry.dimension,
         entry.property,
-        result.response,
+        response,
         entry.mustContain,
         entry.mustNotContain,
       ),
@@ -116,9 +137,11 @@ async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEv
     scenarioId: scenario.id,
     severity: scenario.severity,
     input: scenario.input,
-    response: result.response,
-    fixtureId: result.metadata.fixtureId,
-    runId: result.metadata.runId,
+    response,
+    fixtureId,
+    runId,
+    variant: scenario.variant ?? "acceptable",
+    responseSource,
     criteria,
     // A scenario with zero evaluated criteria is never a pass: an empty
     // `evaluated` array would otherwise make `.every()` return true.

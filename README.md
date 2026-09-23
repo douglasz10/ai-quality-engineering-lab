@@ -2,10 +2,11 @@
 
 Portfolio monorepo demonstrating practical Quality Engineering for traditional
 and AI-based systems. **Status: V1 traditional QE complete (Stories 1.1–1.6);
-Stories 2.1 (Assistant subject), 2.2 (scenarios + rubric), and 2.3
-(deterministic evaluation) are implemented.** Violation scenarios (2.4),
-variation handling (2.5), live mode (2.6), Agent, and reviewer consolidation
-arrive in later stories and must not be described as implemented.
+Epic 2 Assistant evaluation foundation complete (2.1 subject, 2.2 scenarios +
+rubric, 2.3 deterministic engine, 2.4 hallucination/prompt-injection
+evaluation).** Variation handling (2.5), live mode (2.6), Agent (Epic 3), and
+reviewer evidence consolidation (Epic 4) arrive in later stories and must not
+be described as implemented.
 
 ## Prerequisites
 
@@ -28,21 +29,22 @@ default path.
 
 ## Command vocabulary
 
-| Command                   | Purpose                                                                                            |
-| ------------------------- | -------------------------------------------------------------------------------------------------- |
-| `npm install`             | Install root dependencies and link workspaces                                                      |
-| `npm run typecheck`       | Strict TypeScript check (`tsc --noEmit`)                                                           |
-| `npm run lint`            | ESLint with strict type-checked rules                                                              |
-| `npm run format:check`    | Prettier validation                                                                                |
-| `npm run format`          | Prettier write                                                                                     |
-| `npm run test:smoke`      | Deterministic `node:test` foundation smoke                                                         |
-| `npm run verify`          | Deterministic traditional gate (typecheck, lint, format, smoke, API, contract; E2E stays separate) |
-| `npm run test:api`        | Deterministic API suite (`buildApp` + `inject`)                                                    |
-| `npm run api:start`       | Start the local QA Lab API (Story 1.2)                                                             |
-| `npm run assistant:start` | Invoke the deterministic Assistant subject, prints provider-neutral JSON (Story 2.1)               |
-| `npm run ai:evaluate`     | Deterministic Assistant evaluation: writes JSON + Markdown reports, exit 1 on any failed criterion |
-| `npm run test:e2e`        | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                            |
-| `npm run test:contract`   | Consumer contract + provider verification (Story 1.5; part of `verify`)                            |
+| Command                          | Purpose                                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `npm install`                    | Install root dependencies and link workspaces                                                        |
+| `npm run typecheck`              | Strict TypeScript check (`tsc --noEmit`)                                                             |
+| `npm run lint`                   | ESLint with strict type-checked rules                                                                |
+| `npm run format:check`           | Prettier validation                                                                                  |
+| `npm run format`                 | Prettier write                                                                                       |
+| `npm run test:smoke`             | Deterministic `node:test` foundation smoke                                                           |
+| `npm run verify`                 | Deterministic traditional gate (typecheck, lint, format, smoke, API, contract; E2E stays separate)   |
+| `npm run test:api`               | Deterministic API suite (`buildApp` + `inject`)                                                      |
+| `npm run api:start`              | Start the local QA Lab API (Story 1.2)                                                               |
+| `npm run assistant:start`        | Invoke the deterministic Assistant subject, prints provider-neutral JSON (Story 2.1)                 |
+| `npm run ai:evaluate`            | Deterministic Assistant evaluation: writes JSON + Markdown reports, exit 1 on any failed criterion   |
+| `npm run ai:evaluate:violations` | Intentional violation demo: evaluates the recorded violation scenarios, expected to FAIL (Story 2.4) |
+| `npm run test:e2e`               | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                              |
+| `npm run test:contract`          | Consumer contract + provider verification (Story 1.5; part of `verify`)                              |
 
 ## CI Quality Gates (Story 1.6)
 
@@ -144,9 +146,9 @@ in-process on an ephemeral port (state seeded through public POST only).
 
 ## Deferred (not implemented yet)
 
-Stories 1.1–1.6 (traditional QE + CI gates), 2.1 (Assistant subject), 2.2
-(scenarios + rubric), and 2.3 (deterministic evaluation) are implemented;
-violation scenarios (2.4), variation handling (2.5), live LLM mode (2.6),
+Stories 1.1–1.6 (traditional QE + CI gates) and 2.1–2.4 (Assistant subject,
+scenarios + rubric, deterministic engine, hallucination/prompt-injection
+evaluation) are implemented; variation handling (2.5), live LLM mode (2.6),
 Agent (Epic 3), reviewer evidence consolidation (Epic 4).
 
 ## Assistant Subject (Story 2.1)
@@ -168,12 +170,16 @@ provider-neutral boundary. No credentials, no network, no live LLM.
 Version-controlled, reviewer-inspectable inputs. Nothing executes yet;
 evaluation arrives in Story 2.3.
 
-- Scenarios: `evaluation/scenarios/assistant/*.yaml` (3 core):
-  `assistant-grounded-stock`, `assistant-relevant-shipping`,
+- Scenarios: `evaluation/scenarios/assistant/*.yaml` (5 acceptable):
+  `assistant-grounded-stock`, `assistant-hallucination-refusal`,
+  `assistant-prompt-injection-resisted`, `assistant-relevant-shipping`,
   `assistant-safety-boundary`. Each declares id, objective, input, controlled
   context, expected behavioral properties (`mustContain`/`mustNotContain`
   anchors only, never full-response equality), mode, dimensions, severity,
   tags.
+- Violation demo scenarios live in the separate, non-default folder
+  `evaluation/scenarios/assistant-violations/` (Story 2.4) and are never part
+  of the green run.
 - Rubric: `evaluation/rubrics/assistant.yaml` — all 7 dimensions (Relevance,
   Groundedness, Safety, Robustness, Hallucination resistance, Prompt-injection
   resistance, Acceptable non-deterministic variation) with behavioral
@@ -205,3 +211,33 @@ npm run ai:evaluate
   `npm run ai:evaluate` to restore green reports.
 - Not part of `npm run verify` or CI; evaluation evidence is reviewed on
   demand.
+
+## Hallucination and Prompt-Injection Evaluation (Story 2.4)
+
+Two new acceptable scenarios join the default deterministic run (5 scenarios
+total), and two intentional violation demos live in a separate folder so the
+baseline stays green:
+
+- Default run (`npm run ai:evaluate`, exit 0): `assistant-hallucination-refusal`
+  (groundedness + hallucination-resistance) and
+  `assistant-prompt-injection-resisted` (prompt-injection-resistance + safety) —
+  both invoked through the real deterministic Assistant.
+- Violation demo (`npm run ai:evaluate:violations`, expected exit 1):
+  `assistant-hallucination-violation` and `assistant-prompt-injection-violation`
+  from `evaluation/scenarios/assistant-violations/`. The deterministic
+  Assistant cannot fabricate or obey injected instructions, so these scenarios
+  carry an **inline `recordedResponse`** and are evaluated by the exact same
+  behavioral criteria — that is what makes the PASS/FAIL contrast meaningful.
+- The same committed criteria are used for both variants; only the evaluated
+  response differs. All evidence (response, missing/forbidden anchors, violated
+  dimension) is in the generated reports.
+- Reports label each scenario with report-only metadata: `variant`
+  (`acceptable` | `violation-demo`) and `responseSource` (`assistant` |
+  `recorded`). These labels never influence verdicts; a `violation-demo`
+  scenario that unexpectedly passes is reported as a warning and fails the run.
+- **Scope honesty:** the prompt-injection resistance demonstrated here is
+  deterministic and limited — the deterministic Assistant dispatches on exact
+  fixture input and ignores embedded instructions, so this evidence shows the
+  _evaluation capability_ (criteria, variants, diagnostics), not the robustness
+  of a real LLM. Live-model robustness is Story 2.6 and repeated-run variation
+  is Story 2.5.

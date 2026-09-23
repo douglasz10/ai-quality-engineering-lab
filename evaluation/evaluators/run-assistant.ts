@@ -36,6 +36,8 @@ function renderMarkdown(report: EvaluationReport): string {
   for (const scenario of report.scenarios) {
     lines.push(`### ${scenario.scenarioId} - ${scenario.passed ? "PASS" : "FAIL"}`);
     lines.push(``);
+    lines.push(`Variant: ${scenario.variant} | Response source: ${scenario.responseSource}`);
+    lines.push(``);
     lines.push(`Input: ${scenario.input}`);
     lines.push(``);
     lines.push(`Response: ${scenario.response}`);
@@ -59,7 +61,7 @@ function renderMarkdown(report: EvaluationReport): string {
 function scenarioLabel(scenario: ScenarioEvaluation): string {
   const failed = scenario.criteria.filter((criterion) => criterion.status === "failed").length;
   const skipped = scenario.criteria.filter((criterion) => criterion.status === "skipped").length;
-  return `${scenario.passed ? "PASS" : "FAIL"} ${scenario.scenarioId} (failed=${failed.toString()}, skipped=${skipped.toString()})`;
+  return `${scenario.passed ? "PASS" : "FAIL"} ${scenario.scenarioId} [${scenario.variant}, response=${scenario.responseSource}] (failed=${failed.toString()}, skipped=${skipped.toString()})`;
 }
 
 const report = await evaluateAssistant();
@@ -82,6 +84,18 @@ process.stdout.write(
   `Reports: evaluation/reports/assistant-deterministic.json, evaluation/reports/assistant-deterministic.md\n`,
 );
 
-if (report.summary.failed > 0) {
+// Integrity guard for the demonstration path: a violation-demo scenario that
+// passes would mean the detection capability is not demonstrated, so it is
+// reported and treated as a failure of the demo run.
+const unexpectedPasses = report.scenarios.filter(
+  (scenario) => scenario.variant === "violation-demo" && scenario.passed,
+);
+for (const scenario of unexpectedPasses) {
+  process.stdout.write(
+    `WARNING: violation-demo scenario '${scenario.scenarioId}' passed unexpectedly; the demonstration no longer detects the violation.\n`,
+  );
+}
+
+if (report.summary.failed > 0 || unexpectedPasses.length > 0) {
   process.exitCode = 1;
 }
