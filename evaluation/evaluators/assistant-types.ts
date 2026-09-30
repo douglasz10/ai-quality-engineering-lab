@@ -9,6 +9,19 @@ export type CriterionStatus = "passed" | "failed" | "skipped";
 export type ScenarioVariant = "acceptable" | "violation-demo";
 export type ResponseSource = "assistant" | "recorded";
 
+/**
+ * Story 2.5: a controlled observed response for the same scenario input,
+ * context, dimensions and criteria. Variants differ only in permitted wording,
+ * structure, or level of detail; a variant that violates the property is
+ * expected to fail.
+ */
+export interface ScenarioResponseVariant {
+  readonly variantRef: string;
+  readonly response: string;
+  /** Report-only label; defaults to the scenario variant (or "acceptable"). */
+  readonly variant?: ScenarioVariant;
+}
+
 export interface ScenarioExpectedProperty {
   readonly dimension: string;
   readonly property: string;
@@ -36,6 +49,12 @@ export interface AssistantScenario {
    * inline recorded response evaluated by the same anchor criteria.
    */
   readonly recordedResponse?: string;
+  /**
+   * Story 2.5: multiple controlled responses for the same scenario. Each
+   * variant is evaluated independently with this scenario's dimensions and
+   * criteria, which remain the sole authority for acceptance.
+   */
+  readonly responseVariants?: readonly ScenarioResponseVariant[];
   /** Report-only: "acceptable" (default) or "violation-demo". */
   readonly variant?: ScenarioVariant;
 }
@@ -65,6 +84,8 @@ export interface CriterionResult {
 
 export interface ScenarioEvaluation {
   readonly scenarioId: string;
+  /** Story 2.5: traceability to the evaluated response variant. */
+  readonly variantRef: string;
   readonly severity: string;
   readonly input: string;
   readonly response: string;
@@ -88,11 +109,17 @@ export interface EvaluationReport {
   readonly subject: string;
   readonly mode: string;
   readonly generatedAt: string;
+  /** One row per (scenario, response variant); a scenario yields >= 1 row. */
   readonly scenarios: readonly ScenarioEvaluation[];
   readonly summary: {
+    /** Logical scenarios (a scenario with N variants counts once). */
     readonly totalScenarios: number;
+    /** Scenarios where every evaluated variant passed. */
     readonly passed: number;
+    /** Scenarios with at least one failing variant. */
     readonly failed: number;
+    /** Evaluated variant rows (>= totalScenarios). */
+    readonly totalVariants: number;
     readonly byDimension: Record<string, DimensionSummary>;
   };
 }

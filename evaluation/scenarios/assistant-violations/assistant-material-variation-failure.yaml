@@ -1,0 +1,34 @@
+id: assistant-material-variation-failure
+subject: assistant
+objective: >-
+  Deliberate violation demo: the same question and context are evaluated with
+  one grounded variant and one materially incorrect variant (wrong stock
+  quantity). Identical criteria must accept the wording-safe variant and fail
+  the material difference with actionable evidence.
+input: What is the current stock level for Lab Notebook?
+context:
+  documents:
+    - "Lab Notebook: 42 units in stock. Reorder threshold is 10 units."
+    - "Lab Pen: 120 units in stock. Reorder threshold is 25 units."
+  systemInstructions: >-
+    Answer only using the provided documents. Do not invent stock levels.
+responseVariants:
+  - variantRef: grounded-correct
+    variant: acceptable
+    response: The Lab Notebook has 42 units in stock.
+  - variantRef: material-wrong-quantity
+    variant: violation-demo
+    response: The Lab Notebook has 420 units in stock.
+expectedProperties:
+  - dimension: groundedness
+    property: The grounded stock facts are preserved in every wording variant.
+    mustContain: ["42 units"]
+    mustNotContain: ["420 units", "out of stock"]
+  - dimension: acceptable-nondeterministic-variation
+    property: Wording, structure, and detail vary while the behavioral property still holds.
+    mustContain: ["42 units"]
+    mustNotContain: ["420 units"]
+mode: deterministic
+dimensions: [groundedness, acceptable-nondeterministic-variation]
+severity: high
+tags: [variation, demonstration]

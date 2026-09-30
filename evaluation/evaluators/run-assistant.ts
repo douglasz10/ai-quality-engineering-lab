@@ -14,14 +14,15 @@ import type { EvaluationReport, ScenarioEvaluation } from "./assistant-types.ts"
 function renderMarkdown(report: EvaluationReport): string {
   const passedCount = report.summary.passed.toString();
   const totalCount = report.summary.totalScenarios.toString();
+  const variantCount = report.summary.totalVariants.toString();
   const lines: string[] = [
     `# Assistant Deterministic Evaluation`,
     ``,
     `Mode: ${report.mode} | Generated: ${report.generatedAt}`,
-    `Scenarios: passed=${passedCount} total=${totalCount}`,
+    `Scenarios: passed=${passedCount} total=${totalCount} | Response variants evaluated: ${variantCount}`,
     ``,
-    `| Scenario | Severity | Result | Failed criteria |`,
-    `| --- | --- | --- | --- |`,
+    `| Scenario | Variant | Severity | Result | Failed criteria |`,
+    `| --- | --- | --- | --- | --- |`,
   ];
   for (const scenario of report.scenarios) {
     const failed = scenario.criteria
@@ -29,12 +30,14 @@ function renderMarkdown(report: EvaluationReport): string {
       .map((criterion) => `${criterion.dimension} (${criterion.detail})`)
       .join("; ");
     lines.push(
-      `| ${scenario.scenarioId} | ${scenario.severity} | ${scenario.passed ? "PASS" : "FAIL"} | ${failed === "" ? "none" : failed} |`,
+      `| ${scenario.scenarioId} | ${scenario.variantRef} | ${scenario.severity} | ${scenario.passed ? "PASS" : "FAIL"} | ${failed === "" ? "none" : failed} |`,
     );
   }
   lines.push(``, `## Detail`, ``);
   for (const scenario of report.scenarios) {
-    lines.push(`### ${scenario.scenarioId} - ${scenario.passed ? "PASS" : "FAIL"}`);
+    lines.push(
+      `### ${scenario.scenarioId} [${scenario.variantRef}] - ${scenario.passed ? "PASS" : "FAIL"}`,
+    );
     lines.push(``);
     lines.push(`Variant: ${scenario.variant} | Response source: ${scenario.responseSource}`);
     lines.push(``);
@@ -61,7 +64,7 @@ function renderMarkdown(report: EvaluationReport): string {
 function scenarioLabel(scenario: ScenarioEvaluation): string {
   const failed = scenario.criteria.filter((criterion) => criterion.status === "failed").length;
   const skipped = scenario.criteria.filter((criterion) => criterion.status === "skipped").length;
-  return `${scenario.passed ? "PASS" : "FAIL"} ${scenario.scenarioId} [${scenario.variant}, response=${scenario.responseSource}] (failed=${failed.toString()}, skipped=${skipped.toString()})`;
+  return `${scenario.passed ? "PASS" : "FAIL"} ${scenario.scenarioId} [${scenario.variantRef}] [${scenario.variant}, response=${scenario.responseSource}] (failed=${failed.toString()}, skipped=${skipped.toString()})`;
 }
 
 const report = await evaluateAssistant();
@@ -74,8 +77,9 @@ writeFileSync(path.join(reportsDir, "assistant-deterministic.md"), renderMarkdow
 
 const passedCount = report.summary.passed.toString();
 const totalCount = report.summary.totalScenarios.toString();
+const variantCount = report.summary.totalVariants.toString();
 process.stdout.write(
-  `Assistant deterministic evaluation: passed=${passedCount} total=${totalCount} scenarios passed\n`,
+  `Assistant deterministic evaluation: passed=${passedCount} total=${totalCount} scenarios passed (response variants evaluated: ${variantCount})\n`,
 );
 for (const scenario of report.scenarios) {
   process.stdout.write(`- ${scenarioLabel(scenario)}\n`);

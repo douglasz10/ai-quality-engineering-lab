@@ -4,9 +4,9 @@ Portfolio monorepo demonstrating practical Quality Engineering for traditional
 and AI-based systems. **Status: V1 traditional QE complete (Stories 1.1–1.6);
 Epic 2 Assistant evaluation foundation complete (2.1 subject, 2.2 scenarios +
 rubric, 2.3 deterministic engine, 2.4 hallucination/prompt-injection
-evaluation).** Variation handling (2.5), live mode (2.6), Agent (Epic 3), and
-reviewer evidence consolidation (Epic 4) arrive in later stories and must not
-be described as implemented.
+evaluation, 2.5 acceptable-variation evaluation).** Live mode (2.6), Agent
+(Epic 3), and reviewer evidence consolidation (Epic 4) arrive in later stories
+and must not be described as implemented.
 
 ## Prerequisites
 
@@ -146,10 +146,10 @@ in-process on an ephemeral port (state seeded through public POST only).
 
 ## Deferred (not implemented yet)
 
-Stories 1.1–1.6 (traditional QE + CI gates) and 2.1–2.4 (Assistant subject,
+Stories 1.1–1.6 (traditional QE + CI gates) and 2.1–2.5 (Assistant subject,
 scenarios + rubric, deterministic engine, hallucination/prompt-injection
-evaluation) are implemented; variation handling (2.5), live LLM mode (2.6),
-Agent (Epic 3), reviewer evidence consolidation (Epic 4).
+evaluation, acceptable-variation evaluation) are implemented; live LLM mode
+(2.6), Agent (Epic 3), reviewer evidence consolidation (Epic 4).
 
 ## Assistant Subject (Story 2.1)
 
@@ -170,13 +170,13 @@ provider-neutral boundary. No credentials, no network, no live LLM.
 Version-controlled, reviewer-inspectable inputs. Nothing executes yet;
 evaluation arrives in Story 2.3.
 
-- Scenarios: `evaluation/scenarios/assistant/*.yaml` (5 acceptable):
-  `assistant-grounded-stock`, `assistant-hallucination-refusal`,
-  `assistant-prompt-injection-resisted`, `assistant-relevant-shipping`,
-  `assistant-safety-boundary`. Each declares id, objective, input, controlled
-  context, expected behavioral properties (`mustContain`/`mustNotContain`
-  anchors only, never full-response equality), mode, dimensions, severity,
-  tags.
+- Scenarios: `evaluation/scenarios/assistant/*.yaml` (6 acceptable):
+  `assistant-acceptable-variation`, `assistant-grounded-stock`,
+  `assistant-hallucination-refusal`, `assistant-prompt-injection-resisted`,
+  `assistant-relevant-shipping`, `assistant-safety-boundary`. Each declares
+  id, objective, input, controlled context, expected behavioral properties
+  (`mustContain`/`mustNotContain` anchors only, never full-response equality),
+  mode, dimensions, severity, tags.
 - Violation demo scenarios live in the separate, non-default folder
   `evaluation/scenarios/assistant-violations/` (Story 2.4) and are never part
   of the green run.
@@ -212,11 +212,38 @@ npm run ai:evaluate
 - Not part of `npm run verify` or CI; evaluation evidence is reviewed on
   demand.
 
+## Non-Determinism and Acceptable Variation (Story 2.5)
+
+The evaluator supports **controlled response variants**: one scenario can be
+evaluated against several observed responses that share the same input,
+context, dimensions and criteria. Each variant is evaluated independently.
+
+- New default scenario `assistant-acceptable-variation` carries three
+  acceptable variants (`concise`, `detailed`, `reordered`) that differ in
+  wording, structure and detail while keeping the grounded fact `42 units`;
+  all three must pass, which is what distinguishes acceptable variation from a
+  meaningful failure.
+- New violation-demo scenario `assistant-material-variation-failure` carries
+  one grounded variant (`grounded-correct`, PASS) and one materially incorrect
+  variant (`material-wrong-quantity`, `420 units`, FAIL) evaluated with
+  **identical criteria** — run it with `npm run ai:evaluate:violations`
+  (expected exit 1) to see the contrast with actionable evidence:
+  `groundedness: failed (missing: 42 units)` and forbidden `420 units`.
+- Counting rule: a **scenario is one logical test case**; its variants are
+  evaluated rows. `summary.totalScenarios` counts scenarios once, and
+  `summary.totalVariants` reports how many variant rows were evaluated.
+- Coverage of variants is deterministic and controlled: no sampling, no
+  statistics, no thresholds, no fuzzy or semantic similarity, no
+  LLM-as-a-judge. Variation tolerance is expressed by the shared literal
+  anchors, so a different wording passes while a wrong fact fails.
+- Scope honesty: this models acceptable variation with **recorded responses**,
+  not by sampling a live model; real model variation is Story 2.6.
+
 ## Hallucination and Prompt-Injection Evaluation (Story 2.4)
 
-Two new acceptable scenarios join the default deterministic run (5 scenarios
-total), and two intentional violation demos live in a separate folder so the
-baseline stays green:
+Two acceptable scenarios joined the default deterministic run in Story 2.4
+(Story 2.5 adds the variation scenario), and two intentional violation demos
+live in a separate folder so the baseline stays green:
 
 - Default run (`npm run ai:evaluate`, exit 0): `assistant-hallucination-refusal`
   (groundedness + hallucination-resistance) and

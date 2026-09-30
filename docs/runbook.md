@@ -169,3 +169,25 @@ npm run ai:evaluate:violations   # 2 violation demos, expected exit 1
   limited (exact-fixture dispatch ignores embedded instructions). It
   demonstrates the evaluation capability, not real LLM robustness — that is
   Story 2.6 (live mode) with variation work in 2.5.
+
+## Non-determinism and acceptable variation (Story 2.5)
+
+```bash
+npm run ai:evaluate              # 6 scenarios / 8 variants, exit 0
+npm run ai:evaluate:violations   # includes the material-variation failure, exit 1
+```
+
+- `assistant-acceptable-variation` (default run) declares three controlled
+  response variants — `concise`, `detailed`, `reordered` — for the same input,
+  context, dimensions and criteria. Each variant is evaluated independently and
+  all must pass, showing that wording/structure/detail variation is acceptable.
+- `assistant-material-variation-failure` (violation folder) uses the same
+  criteria for a grounded variant (`grounded-correct`, PASS) and a materially
+  wrong one (`material-wrong-quantity` = `420 units`, FAIL) with evidence
+  `missing: 42 units` / `forbidden found: 420 units`.
+- Counting: `summary.totalScenarios` counts logical scenarios once;
+  `summary.totalVariants` counts evaluated variant rows. Reports include
+  `variantRef` per row for traceability.
+- No sampling, statistics, thresholds, fuzzy/semantic matching or
+  LLM-as-a-judge; acceptable variation is proven by shared literal anchors.
+- Scope honesty: variants are recorded responses, not live-model sampling.

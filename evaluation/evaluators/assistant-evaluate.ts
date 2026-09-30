@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { parse } from "yaml";
 import path from "node:path";
-import { runAssistant } from "../../apps/assistant/src/assistant.ts";
+import { runAssistant, type AssistantContext } from "../../apps/assistant/src/assistant.ts";
 import { repoRoot } from "./report-paths.ts";
 import type {
   AssistantRubric,
@@ -10,6 +10,7 @@ import type {
   EvaluationReport,
   ResponseSource,
   ScenarioEvaluation,
+  ScenarioVariant,
 } from "./assistant-types.ts";
 
 const defaultScenariosDir = path.join(repoRoot, "evaluation", "scenarios", "assistant");
@@ -69,39 +70,64 @@ function loadRubric(): AssistantRubric {
   return parse(readFileSync(rubricPath, "utf8")) as AssistantRubric;
 }
 
-async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEvaluation> {
-  const context =
-    scenario.context.documents === undefined && scenario.context.systemInstructions === undefined
-      ? {}
-      : {
-          ...(scenario.context.documents === undefined
-            ? {}
-            : { documents: scenario.context.documents }),
-          ...(scenario.context.systemInstructions === undefined
-            ? {}
-            : { systemInstructions: scenario.context.systemInstructions }),
-        };
-  // Story 2.4: violation variants are evaluated against an inline recorded
-  // response (the deterministic Assistant cannot produce violating behavior).
-  // The anchor criteria and result model are identical for both sources.
-  const recorded = scenario.recordedResponse;
-  let response: string;
-  let fixtureId: string;
-  let runId: string;
-  let responseSource: ResponseSource;
-  if (recorded === undefined) {
-    const result = await runAssistant(scenario.input, context);
-    response = result.response;
-    fixtureId = result.metadata.fixtureId;
-    runId = result.metadata.runId;
-    responseSource = "assistant";
-  } else {
-    response = recorded;
-    fixtureId = "recorded-response";
-    runId = "not-executed";
-    responseSource = "recorded";
+interface ResolvedResponse {
+  readonly variantRef: string;
+  readonly response: string;
+  readonly variant: ScenarioVariant;
+  readonly source: ResponseSource;
+  readonly fixtureId: string;
+  readonly runId: string;
+}
+
+/**
+ * Resolve the response(s) to evaluate for one scenario:
+ * controlled response variants (Story 2.5) > single recorded response
+ * (Story 2.4) > the deterministic Assistant via runAssistant().
+ * Every resolved response is evaluated with the same scenario criteria.
+ */
+async function resolveResponses(
+  scenario: AssistantScenario,
+  context: AssistantContext,
+): Promise<ResolvedResponse[]> {
+  const variants = scenario.responseVariants;
+  if (variants !== undefined && variants.length > 0) {
+    return variants.map((entry) => ({
+      variantRef: entry.variantRef,
+      response: entry.response,
+      variant: entry.variant ?? scenario.variant ?? "acceptable",
+      source: "recorded" as const,
+      fixtureId: "recorded-response",
+      runId: "not-executed",
+    }));
   }
-  const criteria: CriterionResult[] = scenario.dimensions.map((dimension) => {
+  const recorded = scenario.recordedResponse;
+  if (recorded !== undefined) {
+    return [
+      {
+        variantRef: "recorded",
+        response: recorded,
+        variant: scenario.variant ?? "acceptable",
+        source: "recorded",
+        fixtureId: "recorded-response",
+        runId: "not-executed",
+      },
+    ];
+  }
+  const result = await runAssistant(scenario.input, context);
+  return [
+    {
+      variantRef: "assistant-run",
+      response: result.response,
+      variant: scenario.variant ?? "acceptable",
+      source: "assistant",
+      fixtureId: result.metadata.fixtureId,
+      runId: result.metadata.runId,
+    },
+  ];
+}
+
+function evaluateCriteria(scenario: AssistantScenario, response: string): CriterionResult[] {
+  return scenario.dimensions.map((dimension) => {
     const properties = scenario.expectedProperties.filter((entry) => entry.dimension === dimension);
     if (properties.length === 0) {
       return {
@@ -132,21 +158,42 @@ async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEv
     }
     return first;
   });
-  const evaluated = criteria.filter((entry) => entry.status !== "skipped");
-  return {
-    scenarioId: scenario.id,
-    severity: scenario.severity,
-    input: scenario.input,
-    response,
-    fixtureId,
-    runId,
-    variant: scenario.variant ?? "acceptable",
-    responseSource,
-    criteria,
-    // A scenario with zero evaluated criteria is never a pass: an empty
-    // `evaluated` array would otherwise make `.every()` return true.
-    passed: evaluated.length > 0 && evaluated.every((entry) => entry.status === "passed"),
-  };
+}
+
+async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEvaluation[]> {
+  const context =
+    scenario.context.documents === undefined && scenario.context.systemInstructions === undefined
+      ? {}
+      : {
+          ...(scenario.context.documents === undefined
+            ? {}
+            : { documents: scenario.context.documents }),
+          ...(scenario.context.systemInstructions === undefined
+            ? {}
+            : { systemInstructions: scenario.context.systemInstructions }),
+        };
+  const resolved = await resolveResponses(scenario, context);
+  // Each response variant is evaluated independently with the same criteria;
+  // no variant's result influences another variant.
+  return resolved.map((entry) => {
+    const criteria = evaluateCriteria(scenario, entry.response);
+    const evaluated = criteria.filter((criterion) => criterion.status !== "skipped");
+    return {
+      scenarioId: scenario.id,
+      variantRef: entry.variantRef,
+      severity: scenario.severity,
+      input: scenario.input,
+      response: entry.response,
+      fixtureId: entry.fixtureId,
+      runId: entry.runId,
+      variant: entry.variant,
+      responseSource: entry.source,
+      criteria,
+      // A scenario variant with zero evaluated criteria is never a pass:
+      // an empty `evaluated` array would otherwise make `.every()` return true.
+      passed: evaluated.length > 0 && evaluated.every((criterion) => criterion.status === "passed"),
+    } satisfies ScenarioEvaluation;
+  });
 }
 
 function summarize(evaluations: readonly ScenarioEvaluation[]): EvaluationReport["summary"] {
@@ -164,10 +211,17 @@ function summarize(evaluations: readonly ScenarioEvaluation[]): EvaluationReport
       byDimension[criterion.dimension] = entry;
     }
   }
+  // Story 2.5: a scenario is one logical test case; its response variants are
+  // evaluated rows. A scenario is reported as failed when any variant failed.
+  const scenarioIds = [...new Set(evaluations.map((entry) => entry.scenarioId))];
+  const failedScenarioIds = new Set(
+    evaluations.filter((entry) => !entry.passed).map((entry) => entry.scenarioId),
+  );
   return {
-    totalScenarios: evaluations.length,
-    passed: evaluations.filter((entry) => entry.passed).length,
-    failed: evaluations.filter((entry) => !entry.passed).length,
+    totalScenarios: scenarioIds.length,
+    passed: scenarioIds.length - failedScenarioIds.size,
+    failed: failedScenarioIds.size,
+    totalVariants: evaluations.length,
     byDimension,
   };
 }
@@ -185,7 +239,7 @@ export async function evaluateAssistant(): Promise<EvaluationReport> {
   }
   const evaluations: ScenarioEvaluation[] = [];
   for (const scenario of scenarios) {
-    evaluations.push(await evaluateScenario(scenario));
+    evaluations.push(...(await evaluateScenario(scenario)));
   }
   return {
     subject: "assistant",
