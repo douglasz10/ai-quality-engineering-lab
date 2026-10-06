@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "test:smoke": "node --import tsx --test tests/smoke/foundation.test.ts",
+    "test:smoke": "node --import tsx --test tests/smoke/foundation.test.ts tests/smoke/assistant.live.test.ts",
     "test:api": "node --import tsx --test tests/api/items.test.ts tests/api/schema.test.ts",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
     "test:contract": "node --import tsx --test tests/contract/items.consumer.test.ts && node --import tsx tests/contract/verify.provider.ts",
@@ -28,6 +28,7 @@
     "assistant:start": "npm run start --workspace qa-lab-assistant",
     "ai:evaluate": "node --import tsx evaluation/evaluators/run-assistant.ts",
     "ai:evaluate:violations": "cross-env AI_EVAL_SCENARIOS_DIR=evaluation/scenarios/assistant-violations node --import tsx evaluation/evaluators/run-assistant.ts",
+    "ai:evaluate:live": "cross-env AI_EVAL_SCENARIOS_DIR=evaluation/scenarios/assistant-live node --env-file-if-exists=.env --import tsx evaluation/evaluators/run-assistant-live.ts",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:smoke && npm run test:api && npm run test:contract"
   },
   "devDependencies": {

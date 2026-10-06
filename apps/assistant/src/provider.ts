@@ -3,16 +3,34 @@ import type {
   AssistantMetadata,
   AssistantProviderMode,
   AssistantResult,
+  LiveProviderMetadata,
 } from "./types.ts";
+
+/** Provider-neutral response payload. */
+export interface AssistantProviderResponse {
+  readonly response: string;
+  /**
+   * Technical source reference. For the deterministic provider this is the
+   * matched fixture id; for live execution it is the constant
+   * "live-response" (a compatibility reference, NOT a deterministic fixture).
+   */
+  readonly fixtureId: string;
+}
 
 /**
  * Provider-neutral interface. The Assistant depends only on this boundary;
  * no provider-specific SDK, request, or response structures may leak into
  * assistant.ts, evaluation-facing types, or fixture definitions.
+ *
+ * Story 2.6: respond() is asynchronous so a live HTTP provider can implement
+ * the same boundary. `description` is optional non-sensitive execution
+ * metadata (provider/model/parameters) and is absent for the deterministic
+ * provider.
  */
 export interface AssistantProvider {
   readonly mode: AssistantProviderMode;
-  respond(input: string, context: AssistantContext): { response: string; fixtureId: string };
+  readonly description?: LiveProviderMetadata;
+  respond(input: string, context: AssistantContext): Promise<AssistantProviderResponse>;
 }
 
 /** Deterministic fixture entry: tiny controlled context + canned response. */
@@ -58,15 +76,15 @@ const FALLBACK_FIXTURE_ID = "unmatched-input";
 export class DeterministicAssistantProvider implements AssistantProvider {
   readonly mode: AssistantProviderMode = "deterministic";
 
-  respond(input: string, _context: AssistantContext): { response: string; fixtureId: string } {
+  respond(input: string, _context: AssistantContext): Promise<AssistantProviderResponse> {
     const fixture = FIXTURES.find((entry) => entry.matchInput === input);
     if (fixture !== undefined) {
-      return { response: fixture.response, fixtureId: fixture.fixtureId };
+      return Promise.resolve({ response: fixture.response, fixtureId: fixture.fixtureId });
     }
-    return {
+    return Promise.resolve({
       response: "I can only answer the documented lab questions with the provided context.",
       fixtureId: FALLBACK_FIXTURE_ID,
-    };
+    });
   }
 }
 
@@ -88,18 +106,20 @@ export function getFixtureInputs(): readonly string[] {
 }
 
 /** Assemble the observable result envelope from a provider response. */
-export function toResult(
+export async function toResult(
   input: string,
   context: AssistantContext,
   provider: AssistantProvider,
   startedAtMs: number,
   runId: string,
-): AssistantResult {
-  const { response, fixtureId } = provider.respond(input, context);
+): Promise<AssistantResult> {
+  const { response, fixtureId } = await provider.respond(input, context);
+  const description = provider.description;
   const metadata: AssistantMetadata = {
     runId,
     durationMs: Math.max(0, Date.now() - startedAtMs),
     fixtureId,
+    ...(description === undefined ? {} : { live: description }),
   };
   return { input, context, providerMode: provider.mode, response, metadata };
 }

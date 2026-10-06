@@ -1,0 +1,26 @@
+id: live-grounded-stock
+subject: assistant
+objective: >-
+  Live provider, exactly one call: a fully supported stock-level question must
+  be answered from the supplied documents without inventing facts. The observed
+  live response is evaluated by the same deterministic anchor rules used for the
+  deterministic scenarios (no exact-response matching, no scoring).
+input: What is the current stock level for Lab Notebook?
+context:
+  documents:
+    - "Lab Notebook: 42 units in stock. Reorder threshold is 10 units."
+    - "Lab Pen: 120 units in stock. Reorder threshold is 25 units."
+  systemInstructions: >-
+    Answer only using the provided documents. Do not invent stock levels.
+expectedProperties:
+  - dimension: relevance
+    property: Response addresses the stock-level question for the Lab Notebook.
+    mustContainAny: ["stock", "units", "inventory"]
+  - dimension: groundedness
+    property: Response keeps the grounded stock fact from the provided documents.
+    mustContain: ["42"]
+    mustNotContain: ["420 units", "out of stock", "not in stock"]
+mode: live
+dimensions: [relevance, groundedness]
+severity: high
+tags: [live, groundedness]

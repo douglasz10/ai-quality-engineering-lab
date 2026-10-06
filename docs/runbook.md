@@ -8,7 +8,9 @@
 4. (Optional) `cp .env.example .env` for local overrides.
 5. `npm run verify`
 
-No undocumented manual steps. No credentials or live LLM services required.
+No undocumented manual steps. No credentials or live LLM services are required
+for the default path; live LLM evaluation is optional, opt-in and manual (see
+the Story 2.6 section at the end of this runbook).
 
 ## Verification
 
@@ -191,3 +193,56 @@ npm run ai:evaluate:violations   # includes the material-variation failure, exit
 - No sampling, statistics, thresholds, fuzzy/semantic matching or
   LLM-as-a-judge; acceptable variation is proven by shared literal anchors.
 - Scope honesty: variants are recorded responses, not live-model sampling.
+
+## Live LLM evaluation (Story 2.6, optional and manual)
+
+```bash
+cp .env.example .env      # then set ASSISTANT_LIVE_API_KEY; never commit it
+npm run ai:evaluate:live  # opt-in; local/manual only
+```
+
+- Deterministic evaluation remains the default: `npm run ai:evaluate` (exit 0)
+  and `npm run ai:evaluate:violations` (expected exit 1) are unchanged and need
+  no configuration or network. `npm run verify` stays deterministic and CI
+  never calls the live evaluator.
+- Scenarios: `evaluation/scenarios/assistant-live/*.yaml`
+  (`live-grounded-stock`, `live-unsupported-fact`,
+  `live-prompt-injection-resisted`). One scenario = one provider call = one
+  observed response = one deterministic evaluation. No `responseVariants` and
+  no exact full-response matching.
+- Configuration is environment-only and loaded with Node 24
+  `--env-file-if-exists=.env` (no dotenv dependency). Required:
+  `ASSISTANT_LIVE_API_KEY`, `ASSISTANT_LIVE_MODEL`. Defaults:
+  `ASSISTANT_LIVE_BASE_URL=https://openrouter.ai/api/v1`,
+  `ASSISTANT_LIVE_TEMPERATURE=0`, `ASSISTANT_LIVE_TIMEOUT_MS=30000`. Optional:
+  `ASSISTANT_LIVE_MAX_OUTPUT_TOKENS` (sent as `max_tokens`).
+- Provider: OpenRouter; documented default model `qwen/qwen3.8-27b:free`
+  (verify the model id against your own OpenRouter account). The adapter is
+  OpenAI-compatible and provider-neutral, so switching providers means editing
+  `apps/assistant/src/providers/live-http.provider.ts` only.
+- Outcomes:
+
+| Status        | When                                                          | Exit code |
+| ------------- | ------------------------------------------------------------- | --------- |
+| `passed`      | live evaluation executed and every evaluated criterion passed | 0         |
+| `failed`      | a criterion failed, or the provider/API call failed           | 1         |
+| `unavailable` | required configuration was missing, so nothing was executed   | 0         |
+
+`unavailable` is not a pass; the report says explicitly that live evaluation
+was not executed because configuration was unavailable. No provider is
+created and no scenario runs in that case.
+
+- Failure categories in the report (sanitized, no secrets): `authentication`
+  (401/403), `configuration` (404), `provider` (429, 5xx, timeout, network
+  error), `response` (2xx without usable assistant content).
+- Reports: `evaluation/reports/assistant-live.json` and `.md` (gitignored
+  generated evidence). Only non-sensitive metadata is recorded (provider, model,
+  temperature, optional max output tokens, runId, durationMs) plus the observed
+  response as evaluation evidence; never the API key, `Authorization` header,
+  raw request headers/payload, token counts or cost.
+- No retries, streaming, tools, conversation history, parallel calls, repeated
+  passes, LLM-as-a-judge, statistics or benchmarking. Each response is evaluated
+  with literal, case-insensitive anchors (`mustContain`, `mustContainAny`,
+  `mustNotContain`).
+- Windows note: the script sets `AI_EVAL_SCENARIOS_DIR` through `cross-env`, so
+  it behaves identically in PowerShell and POSIX shells.

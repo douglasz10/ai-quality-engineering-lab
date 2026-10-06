@@ -16,14 +16,34 @@ export interface AssistantInput {
   readonly context: AssistantContext;
 }
 
-/** Execution mode. V1 supports deterministic only; live arrives later. */
-export type AssistantProviderMode = "deterministic";
+/** Execution mode. Deterministic is the default; live is opt-in (Story 2.6). */
+export type AssistantProviderMode = "deterministic" | "live";
+
+/**
+ * Story 2.6: non-sensitive live execution metadata.
+ * Never contains credentials, auth headers, token counts, or cost.
+ */
+export interface LiveProviderMetadata {
+  readonly provider: string;
+  readonly model: string;
+  readonly temperature: number;
+  readonly maxOutputTokens?: number;
+}
+
+/**
+ * Story 2.6: provider-neutral classification of a live attempt that was made.
+ * "unavailable" is deliberately absent: it means required configuration was
+ * missing, so no provider call could be attempted at all.
+ */
+export type LiveFailureCategory = "authentication" | "configuration" | "provider" | "response";
 
 /** Minimal execution metadata (no provider-specific details). */
 export interface AssistantMetadata {
   readonly runId: string;
   readonly durationMs: number;
   readonly fixtureId: string;
+  /** Present only for live execution (Story 2.6). */
+  readonly live?: LiveProviderMetadata;
 }
 
 /** Observable provider-neutral result for later evaluation and diagnosis. */

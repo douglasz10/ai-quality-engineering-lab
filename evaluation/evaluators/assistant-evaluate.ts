@@ -1,7 +1,8 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { parse } from "yaml";
 import path from "node:path";
-import { runAssistant, type AssistantContext } from "../../apps/assistant/src/assistant.ts";
+import { runAssistant } from "../../apps/assistant/src/assistant.ts";
+import type { AssistantContext } from "../../apps/assistant/src/assistant.ts";
 import { repoRoot } from "./report-paths.ts";
 import type {
   AssistantRubric,
@@ -19,7 +20,8 @@ const rubricPath = path.join(repoRoot, "evaluation", "rubrics", "assistant.yaml"
 /**
  * Scenario directory override. Used only to demonstrate a controlled failing
  * evaluation against a temporary copy; the committed scenarios stay the
- * default and are never modified by the harness.
+ * default and are never modified by the harness. Story 2.6 reuses the same
+ * mechanism to point the live command at evaluation/scenarios/assistant-live.
  */
 export function resolveScenariosDir(): string {
   const override = process.env["AI_EVAL_SCENARIOS_DIR"];
@@ -30,46 +32,88 @@ function containsAnchor(response: string, anchor: string): boolean {
   return response.toLowerCase().includes(anchor.toLowerCase());
 }
 
+/**
+ * Deterministic literal anchor evaluation (case-insensitive substring):
+ * every mustContain literal present, at least one mustContainAny literal
+ * present (when declared), and no mustNotContain literal present.
+ * No regex, no fuzzy matching, no embeddings, no scoring, no LLM judge.
+ */
 function evaluateAnchors(
   dimension: string,
   property: string,
   response: string,
   mustContain: readonly string[] = [],
   mustNotContain: readonly string[] = [],
+  mustContainAny: readonly string[] = [],
 ): CriterionResult {
   const missingAnchors = mustContain.filter((anchor) => !containsAnchor(response, anchor));
+  const unmatchedAnyAnchors =
+    mustContainAny.length > 0 && !mustContainAny.some((anchor) => containsAnchor(response, anchor))
+      ? [...mustContainAny]
+      : [];
   const forbiddenFound = mustNotContain.filter((anchor) => containsAnchor(response, anchor));
-  const passed = missingAnchors.length === 0 && forbiddenFound.length === 0;
+  const passed =
+    missingAnchors.length === 0 && unmatchedAnyAnchors.length === 0 && forbiddenFound.length === 0;
   const detail =
     !passed && missingAnchors.length > 0
       ? `missing: ${missingAnchors.join(", ")}`
-      : !passed
-        ? `forbidden found: ${forbiddenFound.join(", ")}`
-        : "all anchors satisfied";
+      : !passed && unmatchedAnyAnchors.length > 0
+        ? `no acceptable anchor found: ${unmatchedAnyAnchors.join(", ")}`
+        : !passed
+          ? `forbidden found: ${forbiddenFound.join(", ")}`
+          : "all anchors satisfied";
   return {
     dimension,
     property,
     status: passed ? "passed" : "failed",
     missingAnchors,
     forbiddenFound,
+    ...(unmatchedAnyAnchors.length === 0 ? {} : { unmatchedAnyAnchors }),
     detail,
   };
 }
 
-function loadScenarios(): AssistantScenario[] {
-  return readdirSync(resolveScenariosDir())
+export function loadScenarios(dir: string = resolveScenariosDir()): AssistantScenario[] {
+  return readdirSync(dir)
     .filter((file) => file.endsWith(".yaml"))
     .sort()
-    .map(
-      (file) =>
-        parse(readFileSync(path.join(resolveScenariosDir(), file), "utf8")) as AssistantScenario,
-    );
+    .map((file) => parse(readFileSync(path.join(dir, file), "utf8")) as AssistantScenario);
 }
 
-function loadRubric(): AssistantRubric {
+export function loadRubric(): AssistantRubric {
   return parse(readFileSync(rubricPath, "utf8")) as AssistantRubric;
 }
 
+/** Every dimension selected by a scenario must exist in the rubric. */
+export function assertKnownDimensions(
+  scenarios: readonly AssistantScenario[],
+  rubric: AssistantRubric,
+): void {
+  const known = new Set(rubric.dimensions.map((dimension) => dimension.name));
+  for (const scenario of scenarios) {
+    for (const dimension of scenario.dimensions) {
+      if (!known.has(dimension)) {
+        throw new Error(`Scenario '${scenario.id}' selects unknown dimension '${dimension}'`);
+      }
+    }
+  }
+}
+
+/** Scenario context as a provider-neutral AssistantContext. */
+export function resolveScenarioContext(scenario: AssistantScenario): AssistantContext {
+  if (
+    scenario.context.documents === undefined &&
+    scenario.context.systemInstructions === undefined
+  ) {
+    return {};
+  }
+  return {
+    ...(scenario.context.documents === undefined ? {} : { documents: scenario.context.documents }),
+    ...(scenario.context.systemInstructions === undefined
+      ? {}
+      : { systemInstructions: scenario.context.systemInstructions }),
+  };
+}
 interface ResolvedResponse {
   readonly variantRef: string;
   readonly response: string;
@@ -100,6 +144,7 @@ async function resolveResponses(
       runId: "not-executed",
     }));
   }
+
   const recorded = scenario.recordedResponse;
   if (recorded !== undefined) {
     return [
@@ -113,6 +158,7 @@ async function resolveResponses(
       },
     ];
   }
+
   const result = await runAssistant(scenario.input, context);
   return [
     {
@@ -126,7 +172,8 @@ async function resolveResponses(
   ];
 }
 
-function evaluateCriteria(scenario: AssistantScenario, response: string): CriterionResult[] {
+/** Deterministic anchor evaluation of one observed response. */
+export function evaluateCriteria(scenario: AssistantScenario, response: string): CriterionResult[] {
   return scenario.dimensions.map((dimension) => {
     const properties = scenario.expectedProperties.filter((entry) => entry.dimension === dimension);
     if (properties.length === 0) {
@@ -146,6 +193,7 @@ function evaluateCriteria(scenario: AssistantScenario, response: string): Criter
         response,
         entry.mustContain,
         entry.mustNotContain,
+        entry.mustContainAny,
       ),
     );
     const failed = evaluated.find((entry) => entry.status === "failed");
@@ -159,22 +207,12 @@ function evaluateCriteria(scenario: AssistantScenario, response: string): Criter
     return first;
   });
 }
-
-async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEvaluation[]> {
-  const context =
-    scenario.context.documents === undefined && scenario.context.systemInstructions === undefined
-      ? {}
-      : {
-          ...(scenario.context.documents === undefined
-            ? {}
-            : { documents: scenario.context.documents }),
-          ...(scenario.context.systemInstructions === undefined
-            ? {}
-            : { systemInstructions: scenario.context.systemInstructions }),
-        };
+/** Build one evaluated row per response resolved for the scenario. */
+export async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEvaluation[]> {
+  const context = resolveScenarioContext(scenario);
   const resolved = await resolveResponses(scenario, context);
   // Each response variant is evaluated independently with the same criteria;
-  // no variant's result influences another variant.
+  // no variant result influences another variant.
   return resolved.map((entry) => {
     const criteria = evaluateCriteria(scenario, entry.response);
     const evaluated = criteria.filter((criterion) => criterion.status !== "skipped");
@@ -196,7 +234,7 @@ async function evaluateScenario(scenario: AssistantScenario): Promise<ScenarioEv
   });
 }
 
-function summarize(evaluations: readonly ScenarioEvaluation[]): EvaluationReport["summary"] {
+export function summarize(evaluations: readonly ScenarioEvaluation[]): EvaluationReport["summary"] {
   const byDimension: Record<string, { pass: number; fail: number; skipped: number }> = {};
   for (const evaluation of evaluations) {
     for (const criterion of evaluation.criteria) {
@@ -226,17 +264,11 @@ function summarize(evaluations: readonly ScenarioEvaluation[]): EvaluationReport
   };
 }
 
+/** Default deterministic evaluation: scenarios -> Assistant -> criteria. */
 export async function evaluateAssistant(): Promise<EvaluationReport> {
   const scenarios = loadScenarios();
   const rubric = loadRubric();
-  const known = new Set(rubric.dimensions.map((dimension) => dimension.name));
-  for (const scenario of scenarios) {
-    for (const dimension of scenario.dimensions) {
-      if (!known.has(dimension)) {
-        throw new Error(`Scenario '${scenario.id}' selects unknown dimension '${dimension}'`);
-      }
-    }
-  }
+  assertKnownDimensions(scenarios, rubric);
   const evaluations: ScenarioEvaluation[] = [];
   for (const scenario of scenarios) {
     evaluations.push(...(await evaluateScenario(scenario)));

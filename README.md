@@ -4,9 +4,10 @@ Portfolio monorepo demonstrating practical Quality Engineering for traditional
 and AI-based systems. **Status: V1 traditional QE complete (Stories 1.1–1.6);
 Epic 2 Assistant evaluation foundation complete (2.1 subject, 2.2 scenarios +
 rubric, 2.3 deterministic engine, 2.4 hallucination/prompt-injection
-evaluation, 2.5 acceptable-variation evaluation).** Live mode (2.6), Agent
-(Epic 3), and reviewer evidence consolidation (Epic 4) arrive in later stories
-and must not be described as implemented.
+evaluation, 2.5 acceptable-variation evaluation, 2.6 optional live LLM
+evaluation).** Live evaluation is opt-in, needs local credentials, and never
+runs in CI; Agent (Epic 3) and reviewer evidence consolidation (Epic 4) arrive
+in later stories and must not be described as implemented.
 
 ## Prerequisites
 
@@ -29,22 +30,23 @@ default path.
 
 ## Command vocabulary
 
-| Command                          | Purpose                                                                                              |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `npm install`                    | Install root dependencies and link workspaces                                                        |
-| `npm run typecheck`              | Strict TypeScript check (`tsc --noEmit`)                                                             |
-| `npm run lint`                   | ESLint with strict type-checked rules                                                                |
-| `npm run format:check`           | Prettier validation                                                                                  |
-| `npm run format`                 | Prettier write                                                                                       |
-| `npm run test:smoke`             | Deterministic `node:test` foundation smoke                                                           |
-| `npm run verify`                 | Deterministic traditional gate (typecheck, lint, format, smoke, API, contract; E2E stays separate)   |
-| `npm run test:api`               | Deterministic API suite (`buildApp` + `inject`)                                                      |
-| `npm run api:start`              | Start the local QA Lab API (Story 1.2)                                                               |
-| `npm run assistant:start`        | Invoke the deterministic Assistant subject, prints provider-neutral JSON (Story 2.1)                 |
-| `npm run ai:evaluate`            | Deterministic Assistant evaluation: writes JSON + Markdown reports, exit 1 on any failed criterion   |
-| `npm run ai:evaluate:violations` | Intentional violation demo: evaluates the recorded violation scenarios, expected to FAIL (Story 2.4) |
-| `npm run test:e2e`               | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                              |
-| `npm run test:contract`          | Consumer contract + provider verification (Story 1.5; part of `verify`)                              |
+| Command                          | Purpose                                                                                                         |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `npm install`                    | Install root dependencies and link workspaces                                                                   |
+| `npm run typecheck`              | Strict TypeScript check (`tsc --noEmit`)                                                                        |
+| `npm run lint`                   | ESLint with strict type-checked rules                                                                           |
+| `npm run format:check`           | Prettier validation                                                                                             |
+| `npm run format`                 | Prettier write                                                                                                  |
+| `npm run test:smoke`             | Deterministic `node:test` foundation smoke                                                                      |
+| `npm run verify`                 | Deterministic traditional gate (typecheck, lint, format, smoke, API, contract; E2E stays separate)              |
+| `npm run test:api`               | Deterministic API suite (`buildApp` + `inject`)                                                                 |
+| `npm run api:start`              | Start the local QA Lab API (Story 1.2)                                                                          |
+| `npm run assistant:start`        | Invoke the deterministic Assistant subject, prints provider-neutral JSON (Story 2.1)                            |
+| `npm run ai:evaluate`            | Deterministic Assistant evaluation: writes JSON + Markdown reports, exit 1 on any failed criterion              |
+| `npm run ai:evaluate:violations` | Intentional violation demo: evaluates the recorded violation scenarios, expected to FAIL (Story 2.4)            |
+| `npm run ai:evaluate:live`       | OPTIONAL live LLM evaluation: one OpenRouter call per live scenario, exit 1 on failure (Story 2.6; never in CI) |
+| `npm run test:e2e`               | Browser E2E suite vs Sauce Demo (Chromium, Story 1.4; outside `verify`)                                         |
+| `npm run test:contract`          | Consumer contract + provider verification (Story 1.5; part of `verify`)                                         |
 
 ## CI Quality Gates (Story 1.6)
 
@@ -148,8 +150,8 @@ in-process on an ephemeral port (state seeded through public POST only).
 
 Stories 1.1–1.6 (traditional QE + CI gates) and 2.1–2.5 (Assistant subject,
 scenarios + rubric, deterministic engine, hallucination/prompt-injection
-evaluation, acceptable-variation evaluation) are implemented; live LLM mode
-(2.6), Agent (Epic 3), reviewer evidence consolidation (Epic 4).
+evaluation, acceptable-variation evaluation, optional live LLM evaluation)
+are implemented; Agent (Epic 3), reviewer evidence consolidation (Epic 4).
 
 ## Assistant Subject (Story 2.1)
 
@@ -268,3 +270,67 @@ live in a separate folder so the baseline stays green:
   _evaluation capability_ (criteria, variants, diagnostics), not the robustness
   of a real LLM. Live-model robustness is Story 2.6 and repeated-run variation
   is Story 2.5.
+
+## Live LLM Evaluation (Story 2.6, optional and opt-in)
+
+```bash
+npm run ai:evaluate:live   # requires local credentials; never runs in CI
+```
+
+- **Deterministic evaluation stays the default.** `npm run ai:evaluate` is
+  unchanged, needs no credentials and no network, and remains the reproducible
+  path. `npm run verify` and CI never call the live evaluator, and no secrets
+  are added to GitHub Actions.
+- **What live mode does:** for each scenario in
+  `evaluation/scenarios/assistant-live/*.yaml` it performs exactly one
+  OpenAI-compatible `POST {base}/chat/completions` call (native `fetch`, no SDK,
+  no OpenRouter SDK, no dotenv) through the provider-neutral
+  `AssistantProvider` boundary, then evaluates the observed response with the
+  **same deterministic anchor rules** used everywhere else.
+- **Provider:** OpenRouter (`ASSISTANT_LIVE_BASE_URL` defaults to
+  `https://openrouter.ai/api/v1`). The adapter is OpenAI-compatible and
+  provider-neutral: provider-specific request/response handling exists only in
+  `apps/assistant/src/providers/live-http.provider.ts`, and the model always
+  comes from `ASSISTANT_LIVE_MODEL`. The documented default model is
+  `qwen/qwen3.8-27b:free` (verify the id against your own OpenRouter account).
+- **Configuration (environment only, never committed):**
+  `ASSISTANT_LIVE_API_KEY` (required), `ASSISTANT_LIVE_MODEL` (required),
+  `ASSISTANT_LIVE_BASE_URL` (default `https://openrouter.ai/api/v1`),
+  `ASSISTANT_LIVE_TEMPERATURE` (default `0`),
+  `ASSISTANT_LIVE_MAX_OUTPUT_TOKENS` (optional, sent as `max_tokens`),
+  `ASSISTANT_LIVE_TIMEOUT_MS` (default `30000`). Only this command loads
+  `.env`, using Node 24 `--env-file-if-exists=.env`. `.env` is gitignored; a
+  real API key must never be committed.
+- **Statuses and exit codes:**
+
+  | Status        | Meaning                                              | Exit |
+  | ------------- | ---------------------------------------------------- | ---- |
+  | `passed`      | live evaluation executed, every criterion passed     | 0    |
+  | `failed`      | a criterion failed, or the provider call failed      | 1    |
+  | `unavailable` | required configuration missing, nothing was executed | 0    |
+
+  `unavailable` is **not** a pass: no provider was created and no scenario ran,
+  and the report states plainly that live evaluation was not executed because
+  configuration was unavailable. Configuration is validated before the provider
+  is created and before any scenario executes. A provider failure is `failed`,
+  never `unavailable`.
+
+- **Failure categories** (sanitized evidence only): `authentication`
+  (401/403), `configuration` (404), `provider` (429, 5xx, timeout, network
+  error), `response` (2xx without usable assistant content).
+- **Reports:** `evaluation/reports/assistant-live.json` and `.md` (generated,
+  gitignored evidence). They contain the observed response as the evidence being
+  evaluated plus non-sensitive metadata (provider, model, temperature, optional
+  max output tokens, runId, durationMs). They never contain the API key, the
+  `Authorization` header, raw request headers or payloads, token counts or cost.
+- **One scenario = one provider call.** No retries, no streaming, no tools, no
+  conversation history, no parallel calls, no repeated passes, no `seed`, no
+  statistical analysis, no benchmarking, no embeddings and no LLM-as-a-judge.
+- **`mustContainAny` (new in Story 2.6):** at least one of several alternative
+  literal anchors must be present. It is an additional rule of the same
+  criterion and never replaces `mustContain`/`mustNotContain`; matching stays
+  case-insensitive, literal and deterministic.
+- **Scope honesty:** live mode demonstrates evaluating a real model with
+  deterministic rules. It is not a determinism claim about the model, not a
+  multi-run variation study, and not a production-readiness statement. Model
+  variation across repeated live runs is out of scope for Story 2.6.
